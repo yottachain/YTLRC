@@ -392,9 +392,9 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 }
 
                 // Fill in indices
-                for (int i = 0; i < originalCount; ++i)
+                for (int i = 0; i < paramLRC.TotalOriginalCount; ++i)
                 {
-                    blocks[i].lrcIndex = cm256_get_original_block_index(originalCount, i);
+                    blocks[i].lrcIndex = i;
                     blocks[i].decodeIndex = i;
                 }
 

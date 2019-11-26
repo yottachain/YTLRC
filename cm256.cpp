@@ -513,7 +513,7 @@ void CM256Decoder::Decode()
     // Eliminate original data from the the recovery rows
     for (int originalIndex = 0; originalIndex < OriginalCount; ++originalIndex)
     {
-        const uint8_t* inBlock = static_cast<const uint8_t*>(originalBlock[originalIndex]->pData);
+        const uint8_t* inBlock = originalBlock[originalIndex]->pData;
         const uint8_t iElement = originalBlock[originalIndex]->lrcIndex;
 
         for (int recoveryIndex = 0; recoveryIndex < N; ++recoveryIndex)
