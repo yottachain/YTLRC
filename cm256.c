@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2015 Christopher A. Taylor.  All rights reserved.
+	Copyright (c) 2019 YottaChain Foundation Ltd. 2015 Christopher A. Taylor.  All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions are met:
@@ -26,6 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <stdlib.h>
 #include "cm256.h"
 
 
@@ -74,8 +75,7 @@
 
 //-----------------------------------------------------------------------------
 // Initialization
-
-extern "C" int cm256_init_(int version)
+int cm256_init_(int version)
 {
     if (version != CM256_VERSION)
     {
@@ -137,7 +137,7 @@ static GF256_FORCE_INLINE unsigned char GetMatrixElement(unsigned char iMatrix, 
 //-----------------------------------------------------------------------------
 // Encoding
 
-extern "C" void CM256EncodeBlock(
+void CM256EncodeBlock(
     cm256_encoder_params params, // Encoder parameters
     CM256Block* originals,      // Array of pointers to original blocks
     int recoveryBlockIndex,      // Return value from cm256_get_recovery_block_index()
@@ -162,9 +162,10 @@ extern "C" void CM256EncodeBlock(
     // so it is merely a parity of the original data.
     if (recoveryBlockIndex == params.TotalOriginalCount)
     {
+        int j;
         int y = params.FirstElement + params.Step;
         gf256_addset_mem(recoveryBlockData, originals[params.FirstElement].pData, originals[y].pData, params.BlockBytes);
-        for (int j = 2; j < params.OriginalCount; ++j)
+        for (j = 2; j < params.OriginalCount; j++)
         {
             y += params.Step;
             gf256_add_mem(recoveryBlockData, originals[y].pData, params.BlockBytes);
@@ -176,11 +177,12 @@ extern "C" void CM256EncodeBlock(
     // TBD: Faster algorithms seem to exist for computing this matrix-vector product.
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = static_cast<uint8_t>(params.TotalOriginalCount);
+    const uint8_t x_0 = (uint8_t)(params.TotalOriginalCount);
 
     // For other rows:
     {
-        const uint8_t x_i = static_cast<uint8_t>(recoveryBlockIndex);
+        int j;
+        const uint8_t x_i = (uint8_t)(recoveryBlockIndex);
 
         // Unroll first operation for speed
         {
@@ -191,9 +193,8 @@ extern "C" void CM256EncodeBlock(
         }
 
         // For each original data column,
-        for (int j = 1; j < params.OriginalCount; ++j)
-        {
-            const uint8_t y_j = static_cast<uint8_t>(params.FirstElement + j * params.Step);
+        for (j = 1; j < params.OriginalCount; j++) {
+            const uint8_t y_j = (uint8_t)(params.FirstElement + j * params.Step);
             const uint8_t matrixElement = GetMatrixElement(x_i, x_0, y_j);
 
             gf256_muladd_mem(recoveryBlockData, matrixElement, originals[y_j].pData, params.BlockBytes);
@@ -201,11 +202,12 @@ extern "C" void CM256EncodeBlock(
     }
 }
 
-extern "C" int cm256_encode(
+int cm256_encode(
     CM256LRC paramLRC, // LRC Encoder params
     CM256Block* originals,      // Array of pointers to original blocks
     uint8_t* recoveryData)        // Output recovery blocks end-to-end
 {
+    short i, j;
     // Validate input:
     if (paramLRC.OriginalCount <= 0 ||
         paramLRC.TotalRecoveryCount <= 3 ||
@@ -222,7 +224,7 @@ extern "C" int cm256_encode(
         return -3;
     }
 
-    cm256_encoder_params_t params;
+    cm256_encoder_params params;
     params.TotalOriginalCount = paramLRC.TotalOriginalCount;
     params.BlockBytes = paramLRC.BlockBytes;
     /*
@@ -233,7 +235,9 @@ extern "C" int cm256_encode(
     params.FirstElement = 0;
     params.Step = 1;
     uint8_t* pRecoveryData = recoveryData;
-    for (int i = 0; i < paramLRC.VerLocalCount; i++) {
+    for (i = 0; i < paramLRC.VerLocalCount; i++) {
+        if ( paramLRC.bIndexByte )
+            *pRecoveryData++ = paramLRC.OriginalCount + i;
         CM256EncodeBlock(params, originals, params.TotalOriginalCount, pRecoveryData);
         pRecoveryData += params.BlockBytes;
         params.FirstElement += paramLRC.HorLocalCount;
@@ -244,41 +248,54 @@ extern "C" int cm256_encode(
      */
     params.OriginalCount = paramLRC.VerLocalCount;
     params.Step = paramLRC.HorLocalCount;
-    for (int i = 0; i < paramLRC.HorLocalCount; i++) {
+    for (i = 0; i < paramLRC.HorLocalCount; i++) {
+        if ( paramLRC.bIndexByte )
+            *pRecoveryData++ = paramLRC.OriginalCount + paramLRC.VerLocalCount + i;
         params.FirstElement = i;
         CM256EncodeBlock(params, originals, params.TotalOriginalCount+1, pRecoveryData);
-        pRecoveryData += params.BlockBytes;
-        
+        pRecoveryData += params.BlockBytes;        
     }
 
     /*
      * Calculate global recovery blocks
      */
+    uint8_t *pLocalGlobalRecoveryData;
+    if ( paramLRC.bIndexByte )
+        pLocalGlobalRecoveryData = pRecoveryData + paramLRC.GlobalRecoveryCount * params.BlockBytes;
+    else {
+        pLocalGlobalRecoveryData = pRecoveryData + paramLRC.GlobalRecoveryCount * (params.BlockBytes + 1);
+        *pLocalGlobalRecoveryData++ = paramLRC.OriginalCount + paramLRC.VerLocalCount + paramLRC.HorLocalCount + paramLRC.GlobalRecoveryCount;
+    }
+    memset(pLocalGlobalRecoveryData, 0, params.BlockBytes);
+
     params.OriginalCount = paramLRC.OriginalCount;
     params.RecoveryCount = paramLRC.GlobalRecoveryCount;
     params.FirstElement = 0;
     params.Step = 1;
-    CM256Block globalRecoveryBlocks[256];
-    for (int i = 0; i < paramLRC.GlobalRecoveryCount; i++)
-    {
+    for (i = 0; i < paramLRC.GlobalRecoveryCount; i++) {
         /*
          * First recovery matrix is used for horizon recovery, 2nd matrix is used for vertical recovery, 
          * so global recovery start from 2
          */
-        globalRecoveryBlocks[i].pData = pRecoveryData;
+        if ( paramLRC.bIndexByte )
+            *pRecoveryData++ = paramLRC.OriginalCount + paramLRC.VerLocalCount + paramLRC.HorLocalCount + i;
         CM256EncodeBlock(params, originals, (params.TotalOriginalCount + i + 2), pRecoveryData);
+
+        for (j = 0; j < params.BlockBytes; j++)
+            pLocalGlobalRecoveryData[j] ^= pRecoveryData[j];
+
         pRecoveryData += params.BlockBytes;
     }
 
-#ifdef NOT_USE    
-    /* Calculate local recovery block for global recovery blocks */
-    params.TotalOriginalCount = paramLRC.GlobalRecoveryCount;
-    params.OriginalCount = paramLRC.GlobalRecoveryCount;
-    params.RecoveryCount = 1;
-    params.FirstElement = 0;
-    params.Step = 1;
-    CM256EncodeBlock(params, globalRecoveryBlocks, params.TotalOriginalCount, pRecoveryData);
-#endif
+    #ifdef NOT_USE
+        /* Calculate local recovery block for global recovery blocks by XOR */
+        params.TotalOriginalCount = paramLRC.GlobalRecoveryCount;
+        params.OriginalCount = paramLRC.GlobalRecoveryCount;
+        params.RecoveryCount = 1;
+        params.FirstElement = 0;
+        params.Step = 1;
+        CM256EncodeBlock(params, globalRecoveryBlocks, params.TotalOriginalCount, pRecoveryData);
+    #endif
 
     return 0;
 }
@@ -287,58 +304,30 @@ extern "C" int cm256_encode(
 //-----------------------------------------------------------------------------
 // Decoding
 
-struct CM256Decoder
+bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks)
 {
-    // Encode parameters
-    cm256_encoder_params Params;
+    int ii;
+    pDecoder->Params = *pParams;
 
-    // Recovery blocks
-    CM256Block* recoveryBlock[256];
-    int RecoveryCount;
-
-    // Original blocks
-    CM256Block* originalBlock[256];
-    int OriginalCount;
-
-    // Row indices that were erased
-    uint8_t ErasuresIndices[256];
-
-    // Initialize the decoder
-    bool Initialize(cm256_encoder_params& params, CM256Block* blocks);
-
-    // Decode m=1 case
-    void DecodeM1();
-
-    // Decode for m>1 case
-    void Decode();
-
-    // Generate the LU decomposition of the matrix
-    void GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U);
-};
-
-bool CM256Decoder::Initialize(cm256_encoder_params& params, CM256Block* blocks)
-{
-    Params = params;
-
-    CM256Block* block = blocks + params.FirstElement;
-    OriginalCount = 0;
-    RecoveryCount = 0;
+    CM256Block* block = blocks + pParams->FirstElement;
+    pDecoder->OriginalCount = 0;
+    pDecoder->RecoveryCount = 0;
 
     // Initialize original flag
     bool bOriginal[256];
-    for (int ii = 0; ii < SIZEOF(bOriginal); ++ii) {
+    for (ii = 0; ii < SIZEOF(bOriginal); ii++) {
         bOriginal[ii] = false;
-        ErasuresIndices[ii] = 0;
+        pDecoder->ErasuresIndices[ii] = 0;
     }
 
     // For each input block,
-    for (int ii = 0; ii < params.OriginalCount; ++ii)    {
+    for (ii = 0; ii < pParams->OriginalCount; ii++) {
         int lrcIndex = block->lrcIndex;
 
         // If it is an original block,
-        if (lrcIndex < params.TotalOriginalCount)
+        if (lrcIndex < pParams->TotalOriginalCount)
         {
-            originalBlock[OriginalCount++] = block;
+            pDecoder->originalBlock[pDecoder->OriginalCount++] = block;
 
             if ( bOriginal[lrcIndex] )
             {
@@ -348,39 +337,37 @@ bool CM256Decoder::Initialize(cm256_encoder_params& params, CM256Block* blocks)
 
             bOriginal[lrcIndex] = true;
         } else {
-            recoveryBlock[RecoveryCount++] = block;
+            pDecoder->recoveryBlock[pDecoder->RecoveryCount++] = block;
         }
-        block += params.Step;
+        block += pParams->Step;
     }
 
     // Identify erasures
-    for (int ii = Params.FirstElement, indexCount = 0; indexCount < RecoveryCount && ii < 256; ii += Params.Step) {
+    int indexCount;
+    for (ii = pParams->FirstElement, indexCount = 0; indexCount < pDecoder->RecoveryCount && ii < 256; ii += pParams->Step) {
         if ( !bOriginal[ii] )
-            ErasuresIndices[indexCount++] = static_cast<uint8_t>( ii );
+            pDecoder->ErasuresIndices[indexCount++] = (uint8_t)( ii );
     }
 
     return true;
 }
 
-void CM256Decoder::DecodeM1()
+void DecodeM1(CM256Decoder *pDecoder)
 {
+    int ii;
     // XOR all other blocks into the recovery block
-    uint8_t* outBlock = recoveryBlock[0]->pData;
+    uint8_t* outBlock = pDecoder->recoveryBlock[0]->pData;
     const uint8_t* inBlock = nullptr;
 
     // For each block,
-    for (int ii = 0; ii < OriginalCount; ++ii)
-    {
-        const uint8_t* inBlock2 = originalBlock[ii]->pData;
+    for (ii = 0; ii < pDecoder->OriginalCount; ii++) {
+        const uint8_t* inBlock2 = pDecoder->originalBlock[ii]->pData;
 
         if (NULL == inBlock)
-        {
             inBlock = inBlock2;
-        }
-        else
-        {
+        else {
             // outBlock ^= inBlock ^ inBlock2
-            gf256_add2_mem(outBlock, inBlock, inBlock2, Params.BlockBytes);
+            gf256_add2_mem(outBlock, inBlock, inBlock2, pDecoder->Params.BlockBytes);
             inBlock = nullptr;
         }
     }
@@ -388,15 +375,15 @@ void CM256Decoder::DecodeM1()
     // Complete XORs
     if (inBlock)
     {
-        gf256_add_mem(outBlock, inBlock, Params.BlockBytes);
+        gf256_add_mem(outBlock, inBlock, pDecoder->Params.BlockBytes);
     }
 
     // Recover the index it corresponds to
-    recoveryBlock[0]->lrcIndex = ErasuresIndices[0];
+    pDecoder->recoveryBlock[0]->lrcIndex = pDecoder->ErasuresIndices[0];
 }
 
 // Generate the LU decomposition of the matrix
-void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
+void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
 {
     // Schur-type-direct-Cauchy algorithm 2.5 from
     // "Pivoting and Backward Stability of Fast Algorithms for Solving Cauchy Linear Equations"
@@ -405,13 +392,13 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     // diagonal one to reduce the number of multiplications to perform against the input data,
     // and organized the triangle matrices in memory to allow for faster SSE3 GF multiplications.
 
+    int i, j, k;
     // Matrix size NxN
-    const int N = RecoveryCount;
+    const int N = pDecoder->RecoveryCount;
 
     // Generators
     uint8_t g[256], b[256];
-    for (int i = 0; i < N; ++i)
-    {
+    for (i = 0; i < N; ++i) {
         g[i] = 1;
         b[i] = 1;
     }
@@ -423,13 +410,13 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     int firstOffset_U = 0;
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = static_cast<uint8_t>(Params.TotalOriginalCount);
+    const uint8_t x_0 = (uint8_t)(pDecoder->Params.TotalOriginalCount);
 
     // Unrolling k = 0 just makes it slower for some reason.
-    for (int k = 0; k < N - 1; ++k)
+    for (k = 0; k < N - 1; ++k)
     {
-        const uint8_t x_k = recoveryBlock[k]->decodeIndex;
-        const uint8_t y_k = ErasuresIndices[k];
+        const uint8_t x_k = pDecoder->recoveryBlock[k]->decodeIndex;
+        const uint8_t y_k = pDecoder->ErasuresIndices[k];
 
         // D_kk = (x_k + y_k)
         // L_kk = g[k] / (x_k + y_k)
@@ -444,10 +431,10 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
         // Computing the k-th row of L and U
         uint8_t* row_L = matrix_L;
         uint8_t* row_U = rotated_row_U;
-        for (int j = k + 1; j < N; ++j)
+        for (j = k + 1; j < N; ++j)
         {
-            const uint8_t x_j = recoveryBlock[j]->decodeIndex; 
-            const uint8_t y_j = ErasuresIndices[j];
+            const uint8_t x_j = pDecoder->recoveryBlock[j]->decodeIndex; 
+            const uint8_t y_j = pDecoder->ErasuresIndices[j];
 
             // L_jk = g[j] / (x_j + y_k)
             // U_kj = b[j] / (x_k + y_j)
@@ -473,7 +460,7 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
         // Copy U matrix row into place in memory.
         uint8_t* output_U = last_U + firstOffset_U;
         row_U = rotated_row_U;
-        for (int j = k + 1; j < N; ++j)
+        for (j = k + 1; j < N; ++j)
         {
             *output_U = *row_U++;
             output_U -= j;
@@ -483,17 +470,17 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
 
     // Multiply diagonal matrix into U
     uint8_t* row_U = matrix_U;
-    for (int j = N - 1; j > 0; --j)
+    for (j = N - 1; j > 0; --j)
     {
-        const uint8_t y_j = ErasuresIndices[j];
+        const uint8_t y_j = pDecoder->ErasuresIndices[j];
         const int count = j;
 
         gf256_mul_mem(row_U, row_U, gf256_add(x_0, y_j), count);
         row_U += count;
     }
 
-    const uint8_t x_n = recoveryBlock[N - 1]->decodeIndex;
-    const uint8_t y_n = ErasuresIndices[N - 1];
+    const uint8_t x_n = pDecoder->recoveryBlock[N - 1]->decodeIndex;
+    const uint8_t y_n = pDecoder->ErasuresIndices[N - 1];
 
     // D_nn = 1 / (x_n + y_n)
     // L_nn = g[N-1]
@@ -505,23 +492,24 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     diag_D[N - 1] = gf256_div(gf256_mul(L_nn, U_nn), gf256_add(x_n, y_n));
 }
 
-void CM256Decoder::Decode()
+void Decode(CM256Decoder *pDecoder)
 {
+    int originalIndex, recoveryIndex, i, j;
     // Matrix size is NxN, where N is the number of recovery blocks used.
-    const int N = RecoveryCount;
+    const int N = pDecoder->RecoveryCount;
 
     // Eliminate original data from the the recovery rows
-    for (int originalIndex = 0; originalIndex < OriginalCount; ++originalIndex)
+    for (originalIndex = 0; originalIndex < pDecoder->OriginalCount; ++originalIndex)
     {
-        const uint8_t* inBlock = originalBlock[originalIndex]->pData;
-        const uint8_t iElement = originalBlock[originalIndex]->lrcIndex;
+        const uint8_t* inBlock = pDecoder->originalBlock[originalIndex]->pData;
+        const uint8_t iElement = pDecoder->originalBlock[originalIndex]->lrcIndex;
 
-        for (int recoveryIndex = 0; recoveryIndex < N; ++recoveryIndex)
+        for (recoveryIndex = 0; recoveryIndex < N; ++recoveryIndex)
         {
-            uint8_t* outBlock = recoveryBlock[recoveryIndex]->pData;
-            const uint8_t matrixElement = GetMatrixElement(recoveryBlock[recoveryIndex]->decodeIndex, Params.TotalOriginalCount, iElement);
+            uint8_t* outBlock = pDecoder->recoveryBlock[recoveryIndex]->pData;
+            const uint8_t matrixElement = GetMatrixElement(pDecoder->recoveryBlock[recoveryIndex]->decodeIndex, pDecoder->Params.TotalOriginalCount, iElement);
 
-            gf256_muladd_mem(outBlock, matrixElement, inBlock, Params.BlockBytes);
+            gf256_muladd_mem(outBlock, matrixElement, inBlock, pDecoder->Params.BlockBytes);
         }
     }
 
@@ -533,7 +521,7 @@ void CM256Decoder::Decode()
     const int requiredSpace = N * N;
     if (requiredSpace > StackAllocSize)
     {
-        dynamicMatrix = new uint8_t[requiredSpace];
+        dynamicMatrix = (uint8_t*)malloc(requiredSpace);
         matrix = dynamicMatrix;
     }
 
@@ -549,59 +537,60 @@ void CM256Decoder::Decode()
     uint8_t* matrix_U = matrix;
     uint8_t* diag_D = matrix_U + (N - 1) * N / 2;
     uint8_t* matrix_L = diag_D + N;
-    GenerateLDUDecomposition(matrix_L, diag_D, matrix_U);
+    GenerateLDUDecomposition(pDecoder, matrix_L, diag_D, matrix_U);
 
     /*
         Eliminate lower left triangle.
     */
     // For each column,
-    for (int j = 0; j < N - 1; ++j)
+    for (j = 0; j < N - 1; ++j)
     {
-        const void* block_j = recoveryBlock[j]->pData;
+        const void* block_j = pDecoder->recoveryBlock[j]->pData;
 
         // For each row,
-        for (int i = j + 1; i < N; ++i)
+        for (i = j + 1; i < N; ++i)
         {
-            void* block_i = recoveryBlock[i]->pData;
+            void* block_i = pDecoder->recoveryBlock[i]->pData;
             const uint8_t c_ij = *matrix_L++; // Matrix elements are stored column-first, top-down.
 
-            gf256_muladd_mem(block_i, c_ij, block_j, Params.BlockBytes);
+            gf256_muladd_mem(block_i, c_ij, block_j, pDecoder->Params.BlockBytes);
         }
     }
 
     /*
         Eliminate diagonal.
     */
-    for (int i = 0; i < N; ++i)
+    for (i = 0; i < N; ++i)
     {
-        uint8_t* blockData = recoveryBlock[i]->pData;
+        uint8_t* blockData = pDecoder->recoveryBlock[i]->pData;
 
-        recoveryBlock[i]->lrcIndex = ErasuresIndices[i];
-        recoveryBlock[i]->decodeIndex = 0; //recoveryBlock[i]->lrcIndex;
+        pDecoder->recoveryBlock[i]->lrcIndex = pDecoder->ErasuresIndices[i];
+        pDecoder->recoveryBlock[i]->decodeIndex = 0; //recoveryBlock[i]->lrcIndex;
 
-        gf256_div_mem(blockData, blockData, diag_D[i], Params.BlockBytes);
+        gf256_div_mem(blockData, blockData, diag_D[i], pDecoder->Params.BlockBytes);
     }
 
     /*
         Eliminate upper right triangle.
     */
-    for (int j = N - 1; j >= 1; --j)
+    for (j = N - 1; j >= 1; --j)
     {
-        const void* block_j = recoveryBlock[j]->pData;
+        const void* block_j = pDecoder->recoveryBlock[j]->pData;
 
-        for (int i = j - 1; i >= 0; --i)
+        for (i = j - 1; i >= 0; --i)
         {
-            void* block_i = recoveryBlock[i]->pData;
+            void* block_i = pDecoder->recoveryBlock[i]->pData;
             const uint8_t c_ij = *matrix_U++; // Matrix elements are stored column-first, bottom-up.
 
-            gf256_muladd_mem(block_i, c_ij, block_j, Params.BlockBytes);
+            gf256_muladd_mem(block_i, c_ij, block_j, pDecoder->Params.BlockBytes);
         }
     }
 
-    delete[] dynamicMatrix;
+    if (NULL != dynamicMatrix)
+        free(dynamicMatrix);
 }
 
-extern "C" int cm256_decode(
+int cm256_decode(
     cm256_encoder_params params, // Encoder params
     CM256Block* blocks)         // Array of 'originalCount' blocks as described above
 {
@@ -627,7 +616,7 @@ extern "C" int cm256_decode(
     }
 
     CM256Decoder state;
-    if (!state.Initialize(params, blocks))
+    if (!DecoderInitialize(&state, &params, blocks))
     {
         return -5;
     }
@@ -648,6 +637,6 @@ extern "C" int cm256_decode(
 #endif
 
     // Decode for m>1
-    state.Decode();
+    Decode(&state);
     return 0;
 }

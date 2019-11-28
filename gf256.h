@@ -1,6 +1,6 @@
 /** \file
     \brief GF(256) Main C API Header
-    \copyright Copyright (c) 2017 Christopher A. Taylor.  All rights reserved.
+    \copyright Copyright (c) 2019 YottaChain Foundation Ltd. 2017 Christopher A. Taylor.  All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are met:
@@ -122,6 +122,10 @@
 
 #ifdef __cplusplus
 extern "C" {
+#else
+#define bool char
+#define true 1
+#define false 0
 #endif // __cplusplus
 
 
@@ -129,7 +133,7 @@ extern "C" {
 // Portability
 
 /// Swap two memory buffers in-place
-extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
+void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
 
 
 //------------------------------------------------------------------------------
@@ -141,7 +145,7 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
 #endif // _MSC_VER
 
 /// The context object stores tables required to perform library calculations
-struct gf256_ctx
+typedef struct
 {
     /// We require memory to be aligned since the SIMD instructions benefit from
     /// or require aligned accesses to the table data.
@@ -176,13 +180,13 @@ struct gf256_ctx
     static const int Max128RecoveryMatrixes = 36;
     uint8_t GF256_128[Max128RecoveryMatrixes][128];
 #endif
-};
+} gf256_ctx;
 
 #ifdef _MSC_VER
     #pragma warning(pop)
 #endif // _MSC_VER
 
-extern gf256_ctx GF256Ctx;
+gf256_ctx GF256Ctx;
 
 
 //------------------------------------------------------------------------------
@@ -206,7 +210,7 @@ extern gf256_ctx GF256Ctx;
     
     Returns 0 on success and other values on failure.
 */
-extern int gf256_init_(int version);
+int gf256_init_(int version);
 #define gf256_init() gf256_init_(GF256_VERSION)
 
 
@@ -250,23 +254,23 @@ static GF256_FORCE_INLINE uint8_t gf256_sqr(uint8_t x)
 // Bulk Memory Math Operations
 
 /// Performs "x[] += y[]" bulk memory XOR operation
-extern void gf256_add_mem(void * GF256_RESTRICT vx,
+void gf256_add_mem(void * GF256_RESTRICT vx,
                           const void * GF256_RESTRICT vy, int bytes);
 
 /// Performs "z[] += x[] + y[]" bulk memory operation
-extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
+void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
                            const void * GF256_RESTRICT vy, int bytes);
 
 /// Performs "z[] = x[] + y[]" bulk memory operation
-extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
+void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
                              const void * GF256_RESTRICT vy, int bytes);
 
 /// Performs "z[] = x[] * y" bulk memory operation
-extern void gf256_mul_mem(void * GF256_RESTRICT vz,
+void gf256_mul_mem(void * GF256_RESTRICT vz,
                           const void * GF256_RESTRICT vx, uint8_t y, int bytes);
 
 /// Performs "z[] += x[] * y" bulk memory operation
-extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
+void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
                              const void * GF256_RESTRICT vx, int bytes);
 
 /// Performs "x[] /= y" bulk memory operation
@@ -282,7 +286,7 @@ static GF256_FORCE_INLINE void gf256_div_mem(void * GF256_RESTRICT vz,
 // Misc Operations
 
 /// Swap two memory buffers in-place
-extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
+void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
 
 
 #ifdef __cplusplus

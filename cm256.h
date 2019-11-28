@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2015 Christopher A. Taylor.  All rights reserved.
+	Copyright (c) 2019 YottaChain Foundation Ltd. 2015 Christopher A. Taylor.  All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions are met:
@@ -36,6 +36,8 @@
 // Library version
 #define CM256_VERSION 2
 
+#define MAXSHARDS   256
+#define MAXHORCOUNT 8
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,7 +56,7 @@ extern int cm256_init_(int version);
 
 
 // Encoder parameters
-typedef struct cm256_encoder_params_t {    
+typedef struct {    
     int TotalOriginalCount;  // Total of original block count < 256
     int OriginalCount;  // Current original block count < 256. It is different than TotalOriginalCount for local recovery block
     int RecoveryCount;  // Recovery block count < 256
@@ -65,7 +67,7 @@ typedef struct cm256_encoder_params_t {
 } cm256_encoder_params;
 
 // Descriptor for data block
-struct CM256Block {
+typedef struct {
     // Pointer to data received.
     uint8_t* pData;
 
@@ -78,9 +80,9 @@ struct CM256Block {
     // 
     uint8_t decodeIndex;    // The order of decoding matrix. Ignored during encoding, required during decoding.
     uint8_t lrcIndex;       // The order in LRC encoded blocks
-};
+} CM256Block;
 
-struct CM256LRC {
+typedef struct {
     int OriginalCount;  // Original block count < 256
     int HorLocalCount;  // Number of blocks in a horizon local group
     int VerLocalCount;  // Number of blocks in a vertical local group. VerLocalCount = (OriginalCount + HorLocalCount -1 ) / HorLocalCount
@@ -90,13 +92,13 @@ struct CM256LRC {
     int FirstHorRecoveryIndex;  // First one of horizon recovery blocks = 0, there are total of VerLocalCount of horizon recovery blocks
     int FirstVerRecoveryIndex;  // First one of vertical recovery blocks = VerLocalCount, there are total of HorLocalCount of vertical recovery blocks
     int FirstGlobalRecoveryIndex;  // First one of globall recovery blocks = VerLocalCount+HorLocalCount
-    int LocalRecoveryOfGlobalRecoveryIndex;  // The index of local recovery block of globall recovery blocks = VerLocalCount+HorLocalCount+GlobalRecoveryCount
-    
+    int LocalRecoveryOfGlobalRecoveryIndex;  // The index of local recovery block of globall recovery blocks = VerLocalCount+HorLocalCount+GlobalRecoveryCount    
     int BlockBytes;    // Number of bytes per block (all blocks are the same size in bytes)
-};
+    bool bIndexByte;    // 1st byte of each block is index byte
+} CM256LRC;
 
 // Compute the value to put in the Index member of cm256_block
-static inline unsigned char cm256_get_recovery_block_index(CM256LRC &paramLRC, int recoveryBlockIndex)
+static inline unsigned char cm256_get_recovery_block_index(CM256LRC paramLRC, int recoveryBlockIndex)
 {
     assert(recoveryBlockIndex >= 0 && recoveryBlockIndex < paramLRC.TotalRecoveryCount + 2);
     return (unsigned char)(paramLRC.TotalOriginalCount + recoveryBlockIndex);
@@ -180,5 +182,35 @@ extern int cm256_decode(
 }
 #endif
 
+typedef struct {
+    // Encode parameters
+    cm256_encoder_params Params;
+
+    // Recovery blocks
+    CM256Block* recoveryBlock[256];
+    int RecoveryCount;
+
+    // Original blocks
+    CM256Block* originalBlock[256];
+    int OriginalCount;
+
+    // Row indices that were erased
+    uint8_t ErasuresIndices[256];
+} CM256Decoder;
+
+// Initialize the decoder
+bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks);
+
+// Decode m=1 case
+void DecodeM1(CM256Decoder *pDecoder);
+
+// Decode for m>1 case
+void Decode(CM256Decoder *pDecoder);
+
+// Generate the LU decomposition of the matrix
+void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U);
+
+short GetHorLocalCount(short originalCount);
+void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 
 #endif // CM256_H

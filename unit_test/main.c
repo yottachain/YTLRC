@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2015 Christopher A. Taylor.  All rights reserved.
+	Copyright (c) 2019 YottaChain Foundation Ltd. 2015 Christopher A. Taylor.  All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions are met:
@@ -35,14 +35,13 @@
 #include <stdlib.h>
 #include <math.h>
 
-using namespace std;
-
 #ifdef _MSC_VER
     #pragma warning(pop)
 #endif
 
 
 #include "../cm256.h"
+#include "../YTLRC.h"
 
 #include <Windows.h>
 
@@ -56,7 +55,7 @@ static double GetPerfFrequencyInverse()
     {
         // Initialize the inverse (same as in Timer code)
         LARGE_INTEGER freq;
-        ::QueryPerformanceFrequency(&freq);
+        QueryPerformanceFrequency(&freq);
         PerfFrequencyInverse = 1.0 / (double)freq.QuadPart;
     }
 
@@ -65,19 +64,21 @@ static double GetPerfFrequencyInverse()
 
 void InitializeData(CM256Block originals[256], int dataBlockCount, int totalBlockCount, int blockBytes)
 {
-    for (int i = 0; i < dataBlockCount; ++i) {
-        for (int j = 0; j < blockBytes; ++j)
+    int i, j;
+    for (i = 0; i < dataBlockCount; i++) {
+        for (j = 0; j < blockBytes; ++j)
             originals[i].pData[j] = (uint8_t)(i + j * 13);
     }
-    for (int i = dataBlockCount; i < totalBlockCount; i++)
+    for (i = dataBlockCount; i < totalBlockCount; i++)
         memset(originals[i].pData, 0, blockBytes);
 }
 
 bool ValidateSolution(CM256Block* blocks, int blockCount, int blockBytes)
 {
+    int i, j;
     uint8_t seen[256] = { 0 };
 
-    for (int i = 0; i < blockCount; ++i)
+    for (i = 0; i < blockCount; ++i)
     {
         uint8_t index = blocks[i].lrcIndex;
 
@@ -93,7 +94,7 @@ bool ValidateSolution(CM256Block* blocks, int blockCount, int blockBytes)
 
         seen[index] = 1;
 
-        for (int j = 0; j < blockBytes; ++j)
+        for (j = 0; j < blockBytes; ++j)
         {
             const uint8_t expected = (uint8_t)(index + j * 13);
             uint8_t* blockData = (uint8_t*)blocks[i].pData;
@@ -110,6 +111,7 @@ bool ValidateSolution(CM256Block* blocks, int blockCount, int blockBytes)
 
 bool ExampleFileUsage()
 {
+    int i, j;
     if (cm256_init())
     {
         return false;
@@ -132,14 +134,14 @@ bool ExampleFileUsage()
 
     // Allocate and fill the original file data
     uint8_t* originalFileData = new uint8_t[OriginalFileBytes];
-    for (int i = 0; i < OriginalFileBytes; ++i)
+    for (i = 0; i < OriginalFileBytes; ++i)
     {
         originalFileData[i] = (uint8_t)i;
     }
 
     // Pointers to data
     CM256Block blocks[256];
-    for (int i = 0; i < params.OriginalCount; ++i)
+    for (i = 0; i < params.OriginalCount; ++i)
     {
         blocks[i].pData = originalFileData + i * params.BlockBytes;
     }
@@ -154,13 +156,13 @@ bool ExampleFileUsage()
     }
 
     // Initialize the indices
-    for (int i = 0; i < params.OriginalCount; ++i)
+    for (i = 0; i < params.OriginalCount; ++i)
     {
         blocks[i].Index = cm256_get_original_block_index(params, i);
     }
 
     //// Simulate loss of data, substituting a recovery block in its place ////
-    for (int i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
+    for (i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
     {
         blocks[i].pData = recoveryBlocks + params.BlockBytes * i; // First recovery block
         blocks[i].Index = cm256_get_recovery_block_index(params, i); // First recovery block index
@@ -172,12 +174,12 @@ bool ExampleFileUsage()
         return false;
     }
 
-    for (int i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
+    for (i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
     {
         uint8_t* block = (uint8_t*)blocks[i].pData;
         int index = blocks[i].Index;
 
-        for (int j = 0; j < params.BlockBytes; ++j)
+        for (j = 0; j < params.BlockBytes; ++j)
         {
             const uint8_t expected = (uint8_t)(j + index * params.BlockBytes);
             if (block[j] != expected)
@@ -196,6 +198,7 @@ bool ExampleFileUsage()
 
 bool CheckMemSwap()
 {
+    int i;
     unsigned char buffa[16 + 8 + 4 + 3];
     memset(buffa, 1, sizeof(buffa));
     unsigned char buffb[16 + 8 + 4 + 3];
@@ -203,7 +206,7 @@ bool CheckMemSwap()
 
     gf256_memswap(buffa, buffb, (int)sizeof(buffa));
 
-    for (int i = 0; i < (int)sizeof(buffa); ++i)
+    for (i = 0; i < (int)sizeof(buffa); ++i)
     {
         if (buffa[i] != 2)
         {
@@ -217,7 +220,7 @@ bool CheckMemSwap()
 
     gf256_memswap(buffa, buffb, (int)sizeof(buffa));
 
-    for (int i = 0; i < (int)sizeof(buffa); ++i)
+    for (i = 0; i < (int)sizeof(buffa); ++i)
     {
         if (buffa[i] != 1)
         {
@@ -234,10 +237,11 @@ bool CheckMemSwap()
 
 bool FinerPerfTimingTest()
 {
-    ::SetPriorityClass(::GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-    ::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    int i, j;
+    SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
-    ::Sleep(1000);
+    Sleep(1000);
 
     if (cm256_init())
     {
@@ -259,14 +263,15 @@ bool FinerPerfTimingTest()
     unsigned char* recoveryData = new unsigned char[256 * params.BlockBytes];
 
     const int trials = 1000;
-    for (int trial = 0; trial < trials; ++trial)
+    int trial;
+    for (trial = 0; trial < trials; ++trial)
     {
-        for (int i = 0; i < params.BlockBytes * params.OriginalCount; ++i)
+        for (i = 0; i < params.BlockBytes * params.OriginalCount; ++i)
         {
             orig_data[i] = (uint8_t)i;
         }
 
-        for (int i = 0; i < params.OriginalCount; ++i)
+        for (i = 0; i < params.OriginalCount; ++i)
         {
             blocks[i].pData = orig_data + i * params.BlockBytes;
         }
@@ -277,13 +282,13 @@ bool FinerPerfTimingTest()
         }
 
         // Initialize the indices
-        for (int i = 0; i < params.OriginalCount; ++i)
+        for (i = 0; i < params.OriginalCount; ++i)
         {
             blocks[i].Index = cm256_get_original_block_index(params, i);
         }
 
         //// Simulate loss of data, substituting a recovery block in its place ////
-        for (int i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
+        for (i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
         {
             blocks[i].pData = recoveryData + params.BlockBytes * i; // First recovery block
             blocks[i].Index = cm256_get_recovery_block_index(params, i); // First recovery block index
@@ -300,12 +305,12 @@ bool FinerPerfTimingTest()
         LARGE_INTEGER t1; ::QueryPerformanceCounter(&t1);
         tsum.QuadPart += t1.QuadPart - t0.QuadPart;
 
-        for (int i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
+        for (i = 0; i < params.RecoveryCount && i < params.OriginalCount; ++i)
         {
             uint8_t* block = (uint8_t*)blocks[i].pData;
             int index = blocks[i].Index;
 
-            for (int j = 0; j < params.BlockBytes; ++j)
+            for (j = 0; j < params.BlockBytes; ++j)
             {
                 const uint8_t expected = (uint8_t)(j + index * params.BlockBytes);
                 if (block[j] != expected)
@@ -331,6 +336,7 @@ bool FinerPerfTimingTest()
 
 bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecoveryCount, int maxRecoveryCount)
 {
+    int i, ii, j;
     if (cm256_init())
     {
         return false;
@@ -338,24 +344,25 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
 
     static const int MaxBlockBytes = 16 * 1024 / 10 * 10 + 10; // multiple of 10
 
-    unsigned char* orig_data = new unsigned char[256 * MaxBlockBytes];
+    uint8_t *orig_data = (uint8_t *)malloc(256 * MaxBlockBytes);
 
-    unsigned char* recoveryData = new unsigned char[256 * MaxBlockBytes];
+    uint8_t *recoveryData = (uint8_t *)malloc(256 * MaxBlockBytes);
 
     CM256Block blocks[256];
 
-//    for (int blockBytes = 8 * 162; blockBytes <= MaxBlockBytes; blockBytes *= 10)
+//    for (blockBytes = 8 * 162; blockBytes <= MaxBlockBytes; blockBytes *= 10)
     int blockBytes = 16 * 1024;
+    int originalCount, recoveryCount;
     {
-        for (int originalCount = minOriginalCount; originalCount <= maxOriginalCount; ++originalCount)
+        for (originalCount = minOriginalCount; originalCount <= maxOriginalCount; ++originalCount)
         {
-            for (int recoveryCount = minRecoveryCount; recoveryCount <= maxRecoveryCount; ++recoveryCount)
+            for (recoveryCount = minRecoveryCount; recoveryCount <= maxRecoveryCount; ++recoveryCount)
             {
                 CM256LRC paramLRC;
                 paramLRC.BlockBytes = blockBytes;
                 paramLRC.OriginalCount = originalCount;
                 paramLRC.GlobalRecoveryCount = recoveryCount;
-                paramLRC.HorLocalCount = min((int)8, (int)sqrt(originalCount));
+                paramLRC.HorLocalCount = GetHorLocalCount(originalCount);
                 paramLRC.VerLocalCount = (originalCount + paramLRC.HorLocalCount - 1) / paramLRC.HorLocalCount;
                 paramLRC.TotalOriginalCount = paramLRC.HorLocalCount * paramLRC.VerLocalCount;
                 paramLRC.FirstHorRecoveryIndex = 0;
@@ -364,7 +371,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 paramLRC.LocalRecoveryOfGlobalRecoveryIndex = paramLRC.FirstGlobalRecoveryIndex + paramLRC.GlobalRecoveryCount;
                 paramLRC.TotalRecoveryCount = paramLRC.LocalRecoveryOfGlobalRecoveryIndex + 1;
 
-                for (int i = 0; i < 256; ++i)
+                for (i = 0; i < 256; ++i)
                 {
                     blocks[i].pData = orig_data + i * MaxBlockBytes;
                 }
@@ -372,7 +379,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 InitializeData(blocks, originalCount, paramLRC.TotalOriginalCount, blockBytes);
 
                 {
-                    LARGE_INTEGER t0; ::QueryPerformanceCounter(&t0);
+                    LARGE_INTEGER t0; QueryPerformanceCounter(&t0);
 
                     if (cm256_encode(paramLRC, blocks, recoveryData))
                     {
@@ -380,7 +387,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                         return false;
                     }
 
-                    LARGE_INTEGER t1; ::QueryPerformanceCounter(&t1);
+                    LARGE_INTEGER t1; QueryPerformanceCounter(&t1);
 
                     LARGE_INTEGER tsum;
                     tsum.QuadPart = t1.QuadPart - t0.QuadPart;
@@ -392,14 +399,14 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 }
 
                 // Fill in indices
-                for (int i = 0; i < paramLRC.TotalOriginalCount; ++i)
+                for (i = 0; i < paramLRC.TotalOriginalCount; ++i)
                 {
                     blocks[i].lrcIndex = i;
                     blocks[i].decodeIndex = i;
                 }
 
                 /* Test for global recovery */
-                for (int ii = 0; ii < paramLRC.GlobalRecoveryCount; ++ii)
+                for (ii = 0; ii < paramLRC.GlobalRecoveryCount; ++ii)
                 {
                     int erasure_index = paramLRC.FirstGlobalRecoveryIndex + ii;
                     blocks[ii].pData = recoveryData + erasure_index * blockBytes;   // Change original blocks to global recovery blocks
@@ -411,9 +418,9 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 uint8_t horGlobalRecoveryBlock[MaxBlockBytes];
 
                 memcpy(horGlobalRecoveryBlock, recoveryData + paramLRC.FirstHorRecoveryIndex * blockBytes, blockBytes);
-                for (int i = 1; i < paramLRC.VerLocalCount; i++) {
+                for (i = 1; i < paramLRC.VerLocalCount; i++) {
                     uint8_t *horRecoveryBlock = recoveryData + (paramLRC.FirstHorRecoveryIndex+i) * blockBytes;
-                    for (int j = 0; j < blockBytes; j++)
+                    for (j = 0; j < blockBytes; j++)
                         horGlobalRecoveryBlock[j] ^= horRecoveryBlock[j];
                 }
 
@@ -421,9 +428,9 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 uint8_t verGlobalRecoveryBlock[MaxBlockBytes];
 
                 memcpy(verGlobalRecoveryBlock, recoveryData + paramLRC.FirstVerRecoveryIndex * blockBytes, blockBytes);
-                for (int i = 1; i < paramLRC.HorLocalCount; i++) {
+                for (i = 1; i < paramLRC.HorLocalCount; i++) {
                     uint8_t *verRecoveryBlock = recoveryData + (paramLRC.FirstVerRecoveryIndex+i) * blockBytes;
-                    for (int j = 0; j < blockBytes; j++)
+                    for (j = 0; j < blockBytes; j++)
                         verGlobalRecoveryBlock[j] ^= verRecoveryBlock[j];
                 }
 
@@ -455,7 +462,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                         return false;
                     }
 
-                    LARGE_INTEGER t1; ::QueryPerformanceCounter(&t1);
+                    LARGE_INTEGER t1; QueryPerformanceCounter(&t1);
 
                     LARGE_INTEGER tsum;
                     tsum.QuadPart = t1.QuadPart - t0.QuadPart;
@@ -473,13 +480,13 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 }
 
                 /* Test for local recovery */
-                for (int ii = 1; ii < paramLRC.HorLocalCount; ++ii)  {  // start from 1 because (0, 0) is reserved for horizonal recovery block
+                for (ii = 1; ii < paramLRC.HorLocalCount; ++ii)  {  // start from 1 because (0, 0) is reserved for horizonal recovery block
                     int erasure_index = paramLRC.FirstVerRecoveryIndex + ii;
                     blocks[ii].pData = recoveryData + erasure_index * blockBytes;   // Change 1st row of original blocks to vertical recovery blocks except (0, 0)
                     blocks[ii].decodeIndex = cm256_get_recovery_block_index(paramLRC, 1);   // All vertical recouvery blocks use 2nd encoding matrix
                     blocks[ii].lrcIndex = paramLRC.TotalOriginalCount + erasure_index;
                 }
-                for (int ii = 0; ii < paramLRC.VerLocalCount; ++ii)  {
+                for (ii = 0; ii < paramLRC.VerLocalCount; ++ii)  {
                     int erasure_index = paramLRC.FirstHorRecoveryIndex + ii;
                     int iBlock = ii * paramLRC.HorLocalCount;
                     blocks[iBlock].pData = recoveryData + erasure_index * blockBytes;   // Change 1st column of original blocks to horizonal recovery blocks
@@ -488,7 +495,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 }
 
                 /* Decode vertical columns except 1st one */
-                for (int ii = 1; ii < paramLRC.HorLocalCount; ii++)  {  // start from 1 because (0, 0) is reserved for horizonal recovery block
+                for (ii = 1; ii < paramLRC.HorLocalCount; ii++)  {  // start from 1 because (0, 0) is reserved for horizonal recovery block
                     LARGE_INTEGER t0;
                     QueryPerformanceCounter(&t0);
 
@@ -506,7 +513,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                         return false;
                     }
 
-                    LARGE_INTEGER t1; ::QueryPerformanceCounter(&t1);
+                    LARGE_INTEGER t1; QueryPerformanceCounter(&t1);
 
                     LARGE_INTEGER tsum;
                     tsum.QuadPart = t1.QuadPart - t0.QuadPart;
@@ -518,7 +525,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                 }
 
                 /* Decode horizonal rows */
-                for (int ii = 0; ii < paramLRC.VerLocalCount; ii++)  {
+                for (ii = 0; ii < paramLRC.VerLocalCount; ii++)  {
                     LARGE_INTEGER t0;
                     QueryPerformanceCounter(&t0);
 
@@ -536,7 +543,7 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
                         return false;
                     }
 
-                    LARGE_INTEGER t1; ::QueryPerformanceCounter(&t1);
+                    LARGE_INTEGER t1; QueryPerformanceCounter(&t1);
 
                     LARGE_INTEGER tsum;
                     tsum.QuadPart = t1.QuadPart - t0.QuadPart;
@@ -559,6 +566,79 @@ bool BulkPerfTesting(int minOriginalCount, int maxOriginalCount, int minRecovery
     return true;
 }
 
+bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, int numLoops)
+{
+    int i, ii, j;
+    if ( !InitialLRC(recoveryCount, 20) )
+        return false;
+
+    static const int MaxBlockBytes = 16 * 1024 / 10 * 10 + 10; // multiple of 10
+
+    uint8_t *orig_data = (uint8_t *)malloc(MAXSHARDS * MaxBlockBytes);
+    uint8_t *decodedData = (uint8_t *)malloc(MAXSHARDS * MaxBlockBytes);
+    uint8_t *shards[MAXSHARDS];
+    CM256Block orgBlocks[MAXSHARDS], decodedBlocks[MAXSHARDS];
+
+//    for (blockBytes = 8 * 162; blockBytes <= MaxBlockBytes; blockBytes *= 10)
+    int shardSize = 16 * 1024;
+    int originalCount;
+    for (i = 0; i < SIZEOF(shards); i++) {
+        shards[i] = orig_data + i * shardSize;
+        shards[i][0] = i;   // Index byte
+        orgBlocks[i].pData = shards[i] + 1;
+        orgBlocks[i].lrcIndex = i;
+        orgBlocks[i].decodeIndex = i;
+        decodedBlocks[i].pData = decodedData + i * (shardSize - 1);
+        decodedBlocks[i].lrcIndex = i;
+        decodedBlocks[i].decodeIndex = i;
+    }
+    for (originalCount = minOriginalCount; originalCount <= maxOriginalCount; ++originalCount) {
+        LARGE_INTEGER t0, t1, tsum; 
+
+        /* Encode */
+        InitializeData(orgBlocks, originalCount, originalCount, shardSize - 1);
+        QueryPerformanceCounter(&t0);
+        short recoveryCount = EncodeLRC(shards, originalCount, shardSize, orig_data + originalCount * shardSize);
+        if ( recoveryCount <= 0) {
+            printf("Encoder error\n");
+            return false;
+        }
+        QueryPerformanceCounter(&t1);
+
+        tsum.QuadPart = t1.QuadPart - t0.QuadPart;
+        double opusec = tsum.QuadPart * GetPerfFrequencyInverse() * 1000000.;
+        double mbps = ((long)(shardSize -1) * originalCount / opusec);
+        printf("Encoder: %d bytes per block, k = %d, m = %d : %lf usec, %lf MBps\n", (int)shardSize,  (int)originalCount, (int)recoveryCount, opusec, mbps);
+        
+        /* Decode */
+        for (j = 0; j < numLoops; j++) {
+            QueryPerformanceCounter(&t0);
+            short hDecode = BeginDecode(originalCount, shardSize, decodedData);
+            if ( hDecode < 0 ) {
+                printf("Begin decode error\n");
+                return false;
+            }
+            i = 0;
+            do {
+                i++;
+                ii = (rand() % (originalCount + recoveryCount));
+            } while ( !DecodeLRC(hDecode, shards[ii]) );
+            QueryPerformanceCounter(&t1);
+
+            tsum.QuadPart = t1.QuadPart - t0.QuadPart;
+            double opusec = tsum.QuadPart * GetPerfFrequencyInverse() * 1000000.;
+            double mbps = ((shardSize - 1) * originalCount / opusec);
+            printf("Decoder: %d bytes per block, k = %d, m = %d : %lf usec, %lf MBps\n", (int)shardSize, originalCount, recoveryCount, opusec, mbps);
+
+            if ( !ValidateSolution(decodedBlocks, originalCount, shardSize - 1) ) {
+                printf("Solution invalid");
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 
 int main(int argc, const char *argv[])
 {
@@ -589,7 +669,7 @@ int main(int argc, const char *argv[])
         if (!FinerPerfTimingTest())
             return(2);
     }
-    if (!BulkPerfTesting(minOriginalCount, maxOriginalCount, minRecoveryCount, maxRecoveryCount))
+    if (!LRCTesting(minOriginalCount, maxOriginalCount, minRecoveryCount, maxRecoveryCount))
         return(3);
 
     return 0;
