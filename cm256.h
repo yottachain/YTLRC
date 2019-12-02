@@ -98,17 +98,25 @@ typedef struct {
 } CM256LRC;
 
 // Compute the value to put in the Index member of cm256_block
-static inline unsigned char cm256_get_recovery_block_index(CM256LRC paramLRC, int recoveryBlockIndex)
+static inline unsigned char cm256_get_recovery_block_index(CM256LRC *pParamLRC, int recoveryBlockIndex)
 {
-    assert(recoveryBlockIndex >= 0 && recoveryBlockIndex < paramLRC.TotalRecoveryCount + 2);
-    return (unsigned char)(paramLRC.TotalOriginalCount + recoveryBlockIndex);
+    assert(recoveryBlockIndex >= 0 && recoveryBlockIndex < pParamLRC->TotalRecoveryCount + 2);
+    return (unsigned char)(pParamLRC->TotalOriginalCount + recoveryBlockIndex);
 }
 static inline unsigned char cm256_get_original_block_index(int OriginalCount, int originalBlockIndex)
 {
     assert(originalBlockIndex >= 0 && originalBlockIndex < OriginalCount);
     return (unsigned char)(originalBlockIndex);
 }
-
+#define HOR_RECOVERY_INDEX(p, i)    cm256_get_recovery_block_index(p, (p)->FirstHorRecoveryIndex + i)
+#define VER_RECOVERY_INDEX(p, i)    cm256_get_recovery_block_index(p, (p)->FirstVerRecoveryIndex + i)
+#define GLOBAL_RECOVERY_INDEX(p, i) cm256_get_recovery_block_index(p, (p)->FirstGlobalRecoveryIndex + i)
+#define HOR_DECODE_INDEX(pParam)  ((pParam)->TotalOriginalCount)
+#define VER_DECODE_INDEX(pParam)  ((pParam)->TotalOriginalCount+1)
+#define GLOBAL_DECODE_INDEX(pParam, i)  ((pParam)->TotalOriginalCount+i+2)
+#define GLOBAL_FROM_HOR_INDEX(pParam)   ((pParam)->TotalOriginalCount + pParam->TotalRecoveryCount)
+#define GLOBAL_FROM_VER_INDEX(pParam)   ((pParam)->TotalOriginalCount + pParam->TotalRecoveryCount + 1)
+#define MAX_INDEX(pParam)   ((pParam)->TotalOriginalCount + pParam->TotalRecoveryCount + 1)
 
 /*
  * Cauchy MDS GF(256) encode
@@ -187,15 +195,15 @@ typedef struct {
     cm256_encoder_params Params;
 
     // Recovery blocks
-    CM256Block* recoveryBlock[256];
+    CM256Block* recoveryBlock[MAXSHARDS];
     int RecoveryCount;
 
     // Original blocks
-    CM256Block* originalBlock[256];
+    CM256Block* originalBlock[MAXSHARDS];
     int OriginalCount;
 
     // Row indices that were erased
-    uint8_t ErasuresIndices[256];
+    uint8_t ErasuresIndices[MAXSHARDS];
 } CM256Decoder;
 
 // Initialize the decoder

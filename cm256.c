@@ -150,7 +150,7 @@ void CM256EncodeBlock(
     {
         // No meaningful operation here, degenerate to outputting the same data each time.
 
-        memcpy(recoveryBlockData, originals[0].pData, params.BlockBytes);
+        memcpy(recoveryBlockData, originals[0].pData, params.BlockBytes);\
         return;
     }
     // else OriginalCount >= 2:
@@ -260,14 +260,13 @@ int cm256_encode(
      * Calculate global recovery blocks
      */
     uint8_t *pLocalGlobalRecoveryData;
-    if ( paramLRC.bIndexByte )
+    if ( !paramLRC.bIndexByte )
         pLocalGlobalRecoveryData = pRecoveryData + paramLRC.GlobalRecoveryCount * params.BlockBytes;
     else {
         pLocalGlobalRecoveryData = pRecoveryData + paramLRC.GlobalRecoveryCount * (params.BlockBytes + 1);
         *pLocalGlobalRecoveryData++ = paramLRC.OriginalCount + paramLRC.VerLocalCount + paramLRC.HorLocalCount + paramLRC.GlobalRecoveryCount;
     }
     memset(pLocalGlobalRecoveryData, 0, params.BlockBytes);
-
     params.OriginalCount = paramLRC.OriginalCount;
     params.RecoveryCount = paramLRC.GlobalRecoveryCount;
     params.FirstElement = 0;
@@ -287,16 +286,20 @@ int cm256_encode(
         pRecoveryData += params.BlockBytes;
     }
 
+    /* Calculate local recovery block for global recovery blocks by XOR */
+    memcpy(pRecoveryData, originals[paramLRC.FirstGlobalRecoveryIndex].pData, params.BlockBytes);
+    for (i = 1; i < paramLRC.GlobalRecoveryCount; i++)
+        gf256_add_mem(pRecoveryData, originals[paramLRC.FirstGlobalRecoveryIndex + i].pData, params.BlockBytes);
+
     #ifdef NOT_USE
-        /* Calculate local recovery block for global recovery blocks by XOR */
-        params.TotalOriginalCount = paramLRC.GlobalRecoveryCount;
+        params.TotalOriginalCount = paramLRC.TotalOriginalCount;
         params.OriginalCount = paramLRC.GlobalRecoveryCount;
         params.RecoveryCount = 1;
-        params.FirstElement = 0;
+        params.FirstElement = paramLRC.FirstGlobalRecoveryIndex;
         params.Step = 1;
-        CM256EncodeBlock(params, globalRecoveryBlocks, params.TotalOriginalCount, pRecoveryData);
+        CM256EncodeBlock(params, originals, params.TotalOriginalCount, pRecoveryData);
     #endif
-
+    
     return 0;
 }
 
@@ -314,8 +317,8 @@ bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pPara
     pDecoder->RecoveryCount = 0;
 
     // Initialize original flag
-    bool bOriginal[256];
-    for (ii = 0; ii < SIZEOF(bOriginal); ii++) {
+    bool bOriginal[MAXSHARDS];
+    for (ii = 0; ii < MAXSHARDS; ii++) {
         bOriginal[ii] = false;
         pDecoder->ErasuresIndices[ii] = 0;
     }
@@ -344,7 +347,7 @@ bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pPara
 
     // Identify erasures
     int indexCount;
-    for (ii = pParams->FirstElement, indexCount = 0; indexCount < pDecoder->RecoveryCount && ii < 256; ii += pParams->Step) {
+    for (ii = pParams->FirstElement, indexCount = 0; indexCount < pDecoder->RecoveryCount && ii < MAXSHARDS; ii += pParams->Step) {
         if ( !bOriginal[ii] )
             pDecoder->ErasuresIndices[indexCount++] = (uint8_t)( ii );
     }
@@ -357,29 +360,34 @@ void DecodeM1(CM256Decoder *pDecoder)
     int ii;
     // XOR all other blocks into the recovery block
     uint8_t* outBlock = pDecoder->recoveryBlock[0]->pData;
+    size_t blockBytes = pDecoder->Params.BlockBytes;
+#ifdef NOT_USE
+    for (ii = 0; ii < pDecoder->OriginalCount; ii++)
+        gf256_add_mem(outBlock, pDecoder->originalBlock[ii]->pData, blockBytes);
+#endif
     const uint8_t* inBlock = nullptr;
 
     // For each block,
     for (ii = 0; ii < pDecoder->OriginalCount; ii++) {
         const uint8_t* inBlock2 = pDecoder->originalBlock[ii]->pData;
 
-        if (NULL == inBlock)
+        if (nullptr == inBlock)
             inBlock = inBlock2;
         else {
             // outBlock ^= inBlock ^ inBlock2
-            gf256_add2_mem(outBlock, inBlock, inBlock2, pDecoder->Params.BlockBytes);
+            gf256_add2_mem(outBlock, inBlock, inBlock2, blockBytes);
             inBlock = nullptr;
         }
     }
 
     // Complete XORs
-    if (inBlock)
+    if (nullptr != inBlock)
     {
         gf256_add_mem(outBlock, inBlock, pDecoder->Params.BlockBytes);
     }
 
     // Recover the index it corresponds to
-    pDecoder->recoveryBlock[0]->lrcIndex = pDecoder->ErasuresIndices[0];
+    pDecoder->recoveryBlock[0]->decodeIndex = pDecoder->recoveryBlock[0]->lrcIndex = pDecoder->ErasuresIndices[0];
 }
 
 // Generate the LU decomposition of the matrix
@@ -397,7 +405,7 @@ void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t
     const int N = pDecoder->RecoveryCount;
 
     // Generators
-    uint8_t g[256], b[256];
+    uint8_t g[MAXSHARDS], b[MAXSHARDS];
     for (i = 0; i < N; ++i) {
         g[i] = 1;
         b[i] = 1;
@@ -405,7 +413,7 @@ void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t
 
     // Temporary buffer for rotated row of U matrix
     // This allows for faster GF bulk multiplication
-    uint8_t rotated_row_U[256];
+    uint8_t rotated_row_U[MAXSHARDS];
     uint8_t* last_U = matrix_U + ((N - 1) * N) / 2 - 1;
     int firstOffset_U = 0;
 
@@ -565,7 +573,7 @@ void Decode(CM256Decoder *pDecoder)
         uint8_t* blockData = pDecoder->recoveryBlock[i]->pData;
 
         pDecoder->recoveryBlock[i]->lrcIndex = pDecoder->ErasuresIndices[i];
-        pDecoder->recoveryBlock[i]->decodeIndex = 0; //recoveryBlock[i]->lrcIndex;
+        pDecoder->recoveryBlock[i]->decodeIndex = pDecoder->recoveryBlock[i]->lrcIndex;
 
         gf256_div_mem(blockData, blockData, diag_D[i], pDecoder->Params.BlockBytes);
     }
@@ -598,7 +606,7 @@ int cm256_decode(
     {
         return -1;
     }
-    if (params.TotalOriginalCount + params.RecoveryCount > 256)
+    if (params.TotalOriginalCount + params.RecoveryCount > MAXSHARDS)
     {
         return -2;
     }
@@ -627,14 +635,14 @@ int cm256_decode(
         return 0;
     }
 
-#ifdef NOT_USE
+//#ifdef NOT_USE
     // If m=1,
-    if (params.RecoveryCount == 1)
+    if (params.RecoveryCount == 1 && state.recoveryBlock[0]->decodeIndex == HOR_DECODE_INDEX(&params) )
     {
-        state.DecodeM1();
+        DecodeM1(&state);
         return 0;
     }
-#endif
+//#endif
 
     // Decode for m>1
     Decode(&state);

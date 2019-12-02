@@ -1,6 +1,6 @@
 /** \file
     \brief GF(256) Main C API Source
-    \copyright Copyright (c) 2017 Christopher A. Taylor.  All rights reserved.
+    \copyright Copyright (c) 2017 Christopher A. Taylor. 2019 YottaChain Foundation Ltd. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are met:
