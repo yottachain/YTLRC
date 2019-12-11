@@ -75,7 +75,7 @@ static inline uint8_t *GlobalFromVerBuf(DecoderLRC *pDecoder)
  * maxHandles: maximum of decoders working at same time
  * return: 0 if fails
  */
-extern short InitialLRC(short n, short maxHandles)
+extern short LRC_Initial(short n, short maxHandles)
 {
     short i, j;
     if (cm256_init() || n <= 2 || maxHandles <= 0)
@@ -100,7 +100,7 @@ extern short InitialLRC(short n, short maxHandles)
  *                length of each shard is shardSize+1, the leading byte of each shard is index of this shard
  * return: number of recovery shards, <=0 fails
  */
-short EncodeLRC(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData)
+short LRC_Encode(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData)
 {
     CM256LRC    param;
     CM256Block blocks[MAXSHARDS];
@@ -136,7 +136,7 @@ short EncodeLRC(const void *originalShards[], unsigned short originalCount, unsi
  * pData: require at least originalCount * (shardSize-1) space, return original data if success
  * return: handle of this decode process, <0 fails (such as exceed maxHandles)
  */
-extern short BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData)
+extern short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData)
 {
     short i, j;
     if (originalCount <= 0 || originalCount >= MAXSHARDS || NULL == pData)
@@ -339,7 +339,7 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
  * in: data of this shard
  * return: 0 if collected shards are not enough for decoding, >0 success, automatically free handle, <0 error
  */
-extern short DecodeLRC(short handle, const void *pData)
+extern short LRC_Decode(short handle, const void *pData)
 {
     short i, j;
     short x, y;
@@ -426,7 +426,7 @@ extern short DecodeLRC(short handle, const void *pData)
     CheckAndRecoverGlobal(pDecoder);
 
     if ( pDecoder->globalMissed <= 0 ) {
-        FreeHandle(handle);
+        LRC_FreeHandle(handle);
         return 1;   // ALl data already been repaired
     }
     if ( pDecoder->globalMissed > pDecoder->totalGlobalRecovery )
@@ -463,14 +463,14 @@ extern short DecodeLRC(short handle, const void *pData)
     if ( cm256_decode(params, pDecoder->blocks) )
         return 0;   // Decode fails
 
-    FreeHandle(handle);
+    LRC_FreeHandle(handle);
     return 1;   // Data retrived
 }
 
 /*
  * Abandon a decode process
  */
-extern void FreeHandle(short handle)
+extern void LRC_FreeHandle(short handle)
 {
     if (handle >= 0 && handle < numDecoders) {
         if ( NULL != decoders[handle].pBuffer )

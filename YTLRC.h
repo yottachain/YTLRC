@@ -36,7 +36,7 @@
  * maxHandles: maximum of decoders working at same time
  * return: 0 if fails
  */
-short InitialLRC(short globalRecoveryCount, short maxHandles);
+short LRC_Initial(short globalRecoveryCount, short maxHandles);
 
 #define MAXRECOVERYSHARDS   36
 /*
@@ -48,7 +48,7 @@ short InitialLRC(short globalRecoveryCount, short maxHandles);
  *                length of each shard is shardSize+1, the leading byte of each shard is index of this shard
  * return: number of recovery shards, <=0 fails
  */
-short EncodeLRC(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData);
+short LRC_Encode(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData);
 
 /*
  * Begin of new decode process
@@ -57,7 +57,7 @@ short EncodeLRC(const void *originalShards[], unsigned short originalCount, unsi
  * pData: require at least originalCount * (shardSize-1) space, return original data if success
  * return: handle of this decode process, <0 fails (such as exceed maxHandles)
  */
-short BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData);
+short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData);
 
 /*
  * Decode one shard for specific decode process
@@ -65,11 +65,12 @@ short BeginDecode(unsigned short originalCount, unsigned long shardSize, void *p
  * pShard: data of this shard
  * return: 0 if collected shards are not enough for decoding,  >0 success, automatically free handle, <0 error
  */
-short DecodeLRC(short handle, const void *pShard);
+short LRC_Decode(short handle, const void *pShard);
 
+short LRC_BeginRebuild(unsigned short originalCount, unsigned long shardSize, unsigned short iLost);
 /*
  * Abandon a decode process
  */
-void FreeHandle(short handle);
+void LRC_FreeHandle(short handle);
 
 #endif  // YTLRC_H

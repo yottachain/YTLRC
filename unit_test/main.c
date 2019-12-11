@@ -575,7 +575,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
 
     if ( minOriginalCount <= 1 || maxOriginalCount >= MAXSHARDS - recoveryCount - 40 )
         return false;
-    if ( !InitialLRC(recoveryCount, 20) )
+    if ( !LRC_Initial(recoveryCount, 20) )
         return false;
 
     int MaxBlockBytes = shardSize / 10 * 10 + 10; // multiple of 10
@@ -602,7 +602,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
 
         /* Encode */
         QueryPerformanceCounter(&t0);
-        short recoveryCount = EncodeLRC(shards, originalCount, shardSize, recoveryData);
+        short recoveryCount = LRC_Encode(shards, originalCount, shardSize, recoveryData);
         if ( recoveryCount <= 0) {
             printf("Encoder error\n");
             return false;
@@ -617,7 +617,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
         /* Decode */
         for (j = 0; j < numLoops; j++) {
             QueryPerformanceCounter(&t0);
-            short hDecode = BeginDecode(originalCount, shardSize, decodedData);
+            short hDecode = LRC_BeginDecode(originalCount, shardSize, decodedData);
             if ( hDecode < 0 ) {
                 printf("Begin decode error\n");
                 return false;
@@ -628,7 +628,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
                 i++;
                 ii = (rand() % (originalCount + recoveryCount));
                 pShard = ii < originalCount ? orig_data + ii * shardSize : recoveryData + (ii - originalCount) * shardSize;
-            } while ( DecodeLRC(hDecode, pShard) <= 0 );
+            } while ( LRC_Decode(hDecode, pShard) <= 0 );
             QueryPerformanceCounter(&t1);
 
             tsum.QuadPart = t1.QuadPart - t0.QuadPart;
