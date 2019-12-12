@@ -33,7 +33,7 @@
 /*
  * Initialize
  * numGlobalRecoveryCount: number of global recovery shards
- * maxHandles: maximum of decoders working at same time
+ * maxHandles: maximum of decoding processes or rebuilding processes working at same time
  * return: 0 if fails
  */
 short LRC_Initial(short globalRecoveryCount, short maxHandles);
@@ -67,9 +67,35 @@ short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, voi
  */
 short LRC_Decode(short handle, const void *pShard);
 
-short LRC_BeginRebuild(unsigned short originalCount, unsigned long shardSize, unsigned short iLost);
 /*
- * Abandon a decode process
+ * Begin a rebuild process, call LRC_NextRequestList immediately to get requested shard list
+ * originalCount: number of shards of original data
+ * iLost: order of lost shard
+ * shardSize: size of each shard
+ * pData: the buffer for rebuilt shard, at least shardSize length
+ * return: handle of rebuild process, <0 fails
+ */
+short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData);
+
+/*
+ * Get next shard list for rebuild the lost shard. 
+ * Invoking this function means the remaning shards of last list are lost.
+ * handle: handle of rebuild process
+ * pList: output, at least 256 bytes space, return new list of required shards
+ * return: number of shards in new list. 0 if no way to rebuild, <0 if something wrong
+ */
+short LRC_NextRequestList(short handle, char *pList);
+
+/*
+ * Provide one shard for rebuilding lost shards
+ * handle: handle of rebuild process
+ * pShard: shard data
+ * return: 1 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required
+ */
+short LRC_OneShardForRebuild(short handle, const void *pShard);
+
+/*
+ * Abandon a decode or rebuild process
  */
 void LRC_FreeHandle(short handle);
 

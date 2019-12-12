@@ -636,14 +636,12 @@ int cm256_decode(
         return 0;
     }
 
-//#ifdef NOT_USE
     // If m=1,
     if (params.RecoveryCount == 1 && state.recoveryBlock[0]->decodeIndex == HOR_DECODE_INDEX(&params) )
     {
         DecodeM1(&state);
         return 0;
     }
-//#endif
 
     // Decode for m>1
     Decode(&state);

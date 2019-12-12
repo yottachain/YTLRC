@@ -45,12 +45,15 @@ typedef struct {
     short totalGlobalRecovery; // count in global recovery shard from horizonal recovery shards and vertical recovery shards
     short numHorRecovery, numVerRecovery;
 
-    uint8_t *pBuffer;   // Buffer for at most 3 shards: one for repair global recovery shard, one for additional global recovery shard from horizonal recovery shards, one for additional global recovery shard from vertical recovery shard
+    uint8_t *pBuffer;   // Buffer for at most 4 shards: one for repair global recovery shard,
+                        // one for additional global recovery shard from horizonal recovery shards, 
+                        // one for additional global recovery shard from vertical recovery shard,
+                        // one for zero shard
 } DecoderLRC;
 #define SHARD_EXISTED(pDecoder, index)   (NULL != pDecoder->blocks[index].pData)
 
 static DecoderLRC *decoders = NULL;
-static short numDecoders = 0;
+static short maxDecoders = 0;
 static short globalRecoveryCount = 10;
 
 static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
@@ -69,10 +72,22 @@ static inline uint8_t *GlobalFromVerBuf(DecoderLRC *pDecoder)
 }
 
 
+typedef struct {    
+    bool bIsUsed;
+    short iLost;
+    CM256LRC param;
+    uint8_t *pDecodedData;
+    enum {INIT_REBUILD, HOR_REBUILD, VER_REBUILD, HOR_RECOVERY_REBUILD,  VER_RECOVERY_REBUILD, GLOBAL_RECOVERY_REBUILD,  GLOBAL_REBUILD} stage;
+    enum {UNKNOWN, EXISTED, LOST, REQUEST} shardStatus[MAXSHARDS];
+} Rebuilder;
+
+static Rebuilder *rebuilders = NULL;
+static short maxRebuilders = 0;
+
 /*
  * Initialize
  * numGlobalRecoveryCount: number of global recovery shards
- * maxHandles: maximum of decoders working at same time
+ * maxHandles: maximum of decoders or rebuilders working at same time
  * return: 0 if fails
  */
 extern short LRC_Initial(short n, short maxHandles)
@@ -80,13 +95,22 @@ extern short LRC_Initial(short n, short maxHandles)
     short i, j;
     if (cm256_init() || n <= 2 || maxHandles <= 0)
         return false;
+
     decoders = malloc(maxHandles * sizeof(DecoderLRC));
     if (NULL == decoders)
         return false;
-    globalRecoveryCount = n - 2;
-    numDecoders = maxHandles;
-    for (i = 0; i < numDecoders; i++)
+    maxDecoders = maxHandles;
+    for (i = 0; i < maxDecoders; i++)
         decoders[i].bIsUsed = false;
+
+    rebuilders = malloc(maxHandles * sizeof(Rebuilder));
+    if (NULL == rebuilders)
+        return false;
+    maxRebuilders = maxHandles;
+    for (i = 0; i < maxRebuilders; i++)
+        rebuilders[i].bIsUsed = false;
+    
+    globalRecoveryCount = n - 2;
 
     return true;
 }
@@ -141,7 +165,7 @@ extern short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
     short i, j;
     if (originalCount <= 0 || originalCount >= MAXSHARDS || NULL == pData)
         return -1;
-    for (i = 0; i < numDecoders; i++) {
+    for (i = 0; i < maxDecoders; i++) {
         if ( decoders[i].bIsUsed )
             continue;
         
@@ -344,7 +368,7 @@ extern short LRC_Decode(short handle, const void *pData)
     short i, j;
     short x, y;
 
-    if (handle < 0 || handle >= numDecoders || !decoders[handle].bIsUsed || NULL == pData)
+    if (handle < 0 || handle >= maxDecoders || !decoders[handle].bIsUsed || NULL == pData)
         return -1;
     DecoderLRC *pDecoder = &decoders[handle];
     uint8_t *pShard = (uint8_t *)pData;
@@ -468,15 +492,18 @@ extern short LRC_Decode(short handle, const void *pData)
 }
 
 /*
- * Abandon a decode process
+ * Abandon a decode or rebuild process
  */
 extern void LRC_FreeHandle(short handle)
 {
-    if (handle >= 0 && handle < numDecoders) {
+    if (handle >= 0 && handle < maxDecoders) {
         if ( NULL != decoders[handle].pBuffer )
             free(decoders[handle].pBuffer);
         decoders[handle].pDecodedData = NULL;
         decoders[handle].bIsUsed = false;
+    } else if (handle >= maxDecoders && handle < maxDecoders + maxRebuilders) {
+        handle -= maxDecoders;
+        rebuilders[handle].bIsUsed = false;
     }
 }
 
@@ -499,4 +526,159 @@ void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shard
     pParam->FirstGlobalRecoveryIndex = pParam->VerLocalCount + pParam->HorLocalCount;
     pParam->LocalRecoveryOfGlobalRecoveryIndex = pParam->FirstGlobalRecoveryIndex + pParam->GlobalRecoveryCount;
     pParam->TotalRecoveryCount = pParam->LocalRecoveryOfGlobalRecoveryIndex + 1;
+}
+
+/*
+ * Begin a rebuild process
+ * originalCount: number of shards of original data
+ * iLost: order of lost shard
+ * shardSize: size of each shard
+ * pData: the buffer for rebuilt shard, at least shardSize length
+ * return: handle of rebuild process, <0 fails
+ */
+extern short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData)
+{
+    short i;
+    if (originalCount <= 0 || originalCount >= MAXSHARDS || iLost >= originalCount)
+        return -1;
+    for (i = 0; i < maxRebuilders; i++) {
+        if ( rebuilders[i].bIsUsed )
+            continue;
+        
+        /* Found an available handle */
+        rebuilders[i].bIsUsed = true;
+        rebuilders[i].iLost = iLost;
+
+        memset(rebuilders[i].shardStatus, UNKNOWN, sizeof(rebuilders[i].shardStatus));
+        rebuilders[i].shardStatus[iLost] = LOST;
+
+        InitialParam(&rebuilders[i].param, originalCount, shardSize, true);
+        return maxDecoders + i;
+    }
+    return -3;
+}
+
+/*
+ * Get next shard list for rebuild the lost shard. 
+ * Invoking this function means the remaning shards of last list are lost.
+ * handle: handle of rebuild process
+ * pList: output, at least 256 bytes space, return new list of required shards
+ * return: number of shards in new list. 0 if no way to rebuild, <0 if something wrong
+ */
+extern short LRC_NextRequestList(short handle, char *pList)
+{
+    short i, j;
+    short numRequest;
+    if (handle < maxDecoders || handle >= maxDecoders + maxRebuilders || NULL == pList)
+        return -1;
+    handle -= maxDecoders;
+    CM256LRC *pParam = &rebuilders[handle].param;
+    short iLost = rebuilders[handle].iLost;
+    switch (rebuilders[handle].stage) {
+    case INIT_REBUILD:
+        if ( iLost < pParam->OriginalCount ) {
+            /* Original shard */
+            rebuilders[handle].stage = HOR_REBUILD;
+            numRequest = pParam->HorLocalCount;
+            short y = iLost / pParam->HorLocalCount;
+            short n = y * pParam->HorLocalCount;
+            for (j = 0; j < pParam->HorLocalCount; j++) {
+                if (n + j == iLost)
+                    pList[j] = pParam->OriginalCount + pParam->FirstHorRecoveryIndex + y;   // Horizonal local recovery shard
+                else
+                    pList[j] = n + j;                    
+            }
+        } else {
+            short recoveryIndex = iLost - pParam->OriginalCount;
+            if ( recoveryIndex >= pParam->FirstHorRecoveryIndex && recoveryIndex < pParam->FirstHorRecoveryIndex + pParam->VerLocalCount ) {
+                /* One of horizonal recovery shards */
+                rebuilders[handle].stage = HOR_RECOVERY_REBUILD;
+                numRequest = pParam->HorLocalCount;
+                short y = recoveryIndex - pParam->FirstHorRecoveryIndex;
+                short n = y * pParam->HorLocalCount;
+                for (j = 0; j < pParam->HorLocalCount; j++)
+                    pList[j] = n + j;
+            } else if ( recoveryIndex >= pParam->FirstVerRecoveryIndex && recoveryIndex < pParam->FirstVerRecoveryIndex + pParam->HorLocalCount ) {
+                /* One of vertical recovery shards */
+                rebuilders[handle].stage = VER_RECOVERY_REBUILD;
+                numRequest = pParam->VerLocalCount;
+                short x = recoveryIndex - pParam->FirstVerRecoveryIndex;
+                for (j = 0; j < pParam->VerLocalCount; j++)
+                    pList[j] = j * pParam->HorLocalCount + x;
+            } else if ( recoveryIndex >= pParam->FirstGlobalRecoveryIndex && recoveryIndex < pParam->FirstGlobalRecoveryIndex + pParam->GlobalRecoveryCount || recoveryIndex == pParam->LocalRecoveryOfGlobalRecoveryIndex) {
+                /* One of global recovery shard */
+                rebuilders[handle].stage = GLOBAL_RECOVERY_REBUILD;
+                numRequest = pParam->GlobalRecoveryCount;
+                short n = pParam->OriginalCount + pParam->FirstGlobalRecoveryIndex;
+                for (j = 0; j < pParam->GlobalRecoveryCount; j++) {
+                    if (n + j == iLost)
+                        pList[j] = pParam->OriginalCount + pParam->LocalRecoveryOfGlobalRecoveryIndex;
+                    else
+                        pList[j] = n + j;
+                }
+            } else
+                return -2;  // Impossible branch, because the value of index has been checked above
+        }
+        break;
+
+    case HOR_REBUILD:
+        rebuilders[handle].stage = VER_REBUILD;
+        numRequest = rebuilders[handle].param.VerLocalCount;
+        unsigned short x = rebuilders[handle].iLost % rebuilders[handle].param.HorLocalCount;
+        unsigned short index = x;
+        for (i = 0; i < rebuilders[handle].param.VerLocalCount; i++) {
+            if (index == rebuilders[handle].iLost)
+                pList[i] = rebuilders[handle].param.OriginalCount + rebuilders[handle].param.FirstVerRecoveryIndex + x;
+            else
+                pList[i] = index;
+            index += rebuilders[handle].param.HorLocalCount;
+        }
+        break;
+
+    case VER_REBUILD:
+    case HOR_RECOVERY_REBUILD:
+    case VER_RECOVERY_REBUILD:
+    case GLOBAL_RECOVERY_REBUILD:
+       /* Directly go to global recovery process if neither horizonal and vertical recovery works. Can be optimized later */
+        rebuilders[handle].stage = GLOBAL_REBUILD;
+        unsigned short n = 0;
+        unsigned short nLost = 0;
+        for (i = 0; i < rebuilders[handle].param.OriginalCount; i++) {
+            if (LOST == rebuilders[handle].shardStatus[i])
+                nLost++;
+            else if (EXISTED != rebuilders[handle].shardStatus[i])
+                pList[n++] = i;
+        }
+        if (nLost > rebuilders[handle].param.GlobalRecoveryCount + 2)
+            return 0;   // Unable to repair
+        /* Request all recovery shards, not only global ones */
+        for (i = 0; i < rebuilders[handle].param.TotalRecoveryCount; i++) {
+            j = rebuilders[handle].param.OriginalCount + i;
+            if (LOST != rebuilders[handle].shardStatus[j] && EXISTED != rebuilders[handle].shardStatus[j])
+                pList[n++] = j;
+        }
+        break;
+
+    case GLOBAL_REBUILD:
+        return -3;
+        break;
+
+    default:
+        return -4;
+
+    }
+    for (j = 0; j < numRequest; j++)
+        rebuilders[handle].shardStatus[pList[j]] = REQUEST;
+    return numRequest;
+}
+
+/*
+ * Provide one shard for rebuilding lost shards
+ * handle: handle of rebuild process
+ * pShard: shard data
+ * return: 1 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required
+ */
+extern short LRC_OneShardForRebuild(short handle, const void *pShard)
+{
+    return 0;
 }
