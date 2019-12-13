@@ -90,7 +90,7 @@ short LRC_NextRequestList(short handle, char *pList);
  * Provide one shard for rebuilding lost shards
  * handle: handle of rebuild process
  * pShard: shard data
- * return: 1 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required
+ * return: >0 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required, <0 if something wrong
  */
 short LRC_OneShardForRebuild(short handle, const void *pShard);
 
