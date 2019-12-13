@@ -44,8 +44,8 @@ short LRC_Initial(short globalRecoveryCount, short maxHandles);
  * originalShards: shards for original data, 1st byte of each shard is its index
  * shardSize: size of each shard
  * originalCount: number of shards of original data
- * pRecoveryData: required at least MAXRECOVERYSHARDS*(shardSize+1) space, return recovery shards after encoding,
- *                length of each shard is shardSize+1, the leading byte of each shard is index of this shard
+ * pRecoveryData: required at least MAXRECOVERYSHARDS*shardSize space, return recovery shards after encoding,
+ *                the leading byte of each shard is index of this shard
  * return: number of recovery shards, <=0 fails
  */
 short LRC_Encode(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData);
@@ -63,7 +63,7 @@ short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, voi
  * Decode one shard for specific decode process
  * handle: handle of decode process
  * pShard: data of this shard
- * return: 0 if collected shards are not enough for decoding,  >0 success, automatically free handle, <0 error
+ * return: 0 if collected shards are not enough for decoding,  >0 success, <0 error
  */
 short LRC_Decode(short handle, const void *pShard);
 

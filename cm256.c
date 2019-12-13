@@ -286,20 +286,6 @@ int cm256_encode(
 
         pRecoveryData += params.BlockBytes;
     }
-#ifdef NOT_USE
-    /* Calculate local recovery block for global recovery blocks by XOR */
-    memcpy(pRecoveryData, originals[paramLRC.FirstGlobalRecoveryIndex].pData, params.BlockBytes);
-    for (i = 1; i < paramLRC.GlobalRecoveryCount; i++)
-        gf256_add_mem(pRecoveryData, originals[paramLRC.FirstGlobalRecoveryIndex + i].pData, params.BlockBytes);
-#endif
-    #ifdef NOT_USE
-        params.TotalOriginalCount = paramLRC.TotalOriginalCount;
-        params.OriginalCount = paramLRC.GlobalRecoveryCount;
-        params.RecoveryCount = 1;
-        params.FirstElement = paramLRC.FirstGlobalRecoveryIndex;
-        params.Step = 1;
-        CM256EncodeBlock(params, originals, params.TotalOriginalCount, pRecoveryData);
-    #endif
     
     return 0;
 }
