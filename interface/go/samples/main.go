@@ -40,12 +40,13 @@ func main(){
      return
    }
    fmt.Println(s)
-
+   var z int16
    for e:=slist.Front();nil != e;e=e.Next() {
+       z = 0
        f,_ := os.Open("/root/LRC/test" + strconv.Itoa(int(e.Value.(int16))) + ".dat")
        t,_:=ioutil.ReadAll(f)
        f.Close()
-       z:=lrc.AddShardData(a,t)
+       z=lrc.AddShardData(a,t)
        if (z == 0) {
           fmt.Println("add data test" + strconv.Itoa(int(e.Value.(int16))) + ".dat ok")
        }
