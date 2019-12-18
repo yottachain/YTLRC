@@ -60,17 +60,18 @@ static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer;
 }
-
 static inline uint8_t *GlobalFromHorBuf(DecoderLRC *pDecoder)
 {
-    return pDecoder->pBuffer + pDecoder->param.BlockBytes;
+    return pDecoder->pBuffer + pDecoder->param.BlockBytes + 1;
 }
-
 static inline uint8_t *GlobalFromVerBuf(DecoderLRC *pDecoder)
 {
-    return pDecoder->pBuffer + 2 * pDecoder->param.BlockBytes;
+    return pDecoder->pBuffer + 2 * (pDecoder->param.BlockBytes+1);
 }
-
+static inline uint8_t *ZeroBuf(DecoderLRC *pDecoder)
+{
+    return pDecoder->pBuffer + 3 * (pDecoder->param.BlockBytes+1);
+}
 
 typedef struct {    
     bool bIsUsed;
@@ -187,9 +188,9 @@ extern short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
         pDecoder->pBuffer = malloc(4 * shardSize);
         if (NULL == pDecoder->pBuffer)
             return -2;
-        memset(pDecoder->pBuffer + 3*shardSize, 0, shardSize);  // The last shard is zero shard
+        memset(ZeroBuf(pDecoder), 0, shardSize);  // The last shard is zero shard
         for (j = pDecoder->param.OriginalCount; j < pDecoder->param.TotalOriginalCount; j++) {
-            pDecoder->blocks[j].pData = pDecoder->pBuffer + 3*shardSize;
+            pDecoder->blocks[j].pData = ZeroBuf(pDecoder);
             pDecoder->blocks[j].lrcIndex = j;
             pDecoder->blocks[j].decodeIndex = j;
         }
@@ -318,7 +319,9 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
             short index = GLOBAL_RECOVERY_INDEX(pParam, i);
             if ( !SHARD_EXISTED(pDecoder, index) ) {
                 /* Found the missing shard, repair it */
-                pDecoder->blocks[index].pData = pBuf; // lrcIndex and decodeIndex of this shard are not used hereinafter
+                pDecoder->blocks[index].pData = pBuf;
+                pDecoder->blocks[index].lrcIndex = index;
+                pDecoder->blocks[index].decodeIndex = GLOBAL_DECODE_INDEX(pParam, i);
             } else {
                 assert(pDecoder->blocks[index].pData != pBuf);
                 gf256_add_mem(pBuf, pDecoder->blocks[index].pData, pParam->BlockBytes);
@@ -329,13 +332,23 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
         ret = true;
     }
 
-    CM256Block *pShard = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
+#ifdef NOT_USE
+    CM256Block *pShard;
     if ( pDecoder->numHorRecovery == pParam->VerLocalCount && NULL == pShard->pData ) {
         /* There is an additional global recovery shard from horizonal recovery shards */
+        pShard = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
         uint8_t *pBuf = GlobalFromHorBuf(pDecoder);
         memcpy(pBuf, pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, 0)].pData, pParam->BlockBytes);
-        for (i = 1; i < pParam->VerLocalCount; i++)
+        for (i = 1; i < pParam->VerLocalCount; i++) {
+#ifdef NOT_USE
             gf256_add_mem(pBuf, pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, i)].pData, pParam->BlockBytes);
+#else
+            uint8_t *p = pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, i)].pData;
+            short j;
+            for (j = 0; j < pParam->BlockBytes; j++)
+                pBuf[j] ^= *p++;
+#endif
+        }
         pShard->pData = pBuf;
         pShard->lrcIndex = GLOBAL_FROM_HOR_INDEX(pParam);
         pShard->decodeIndex = HOR_DECODE_INDEX(pParam);
@@ -344,9 +357,9 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
         ret = true;
     }
 
-    pShard = &pDecoder->blocks[GLOBAL_FROM_VER_INDEX(pParam)];
     if ( pDecoder->numVerRecovery == pParam->HorLocalCount && NULL == pShard->pData ) {
         /* There is an additional global recovery shard from vertical recovery shards */
+        pShard = &pDecoder->blocks[GLOBAL_FROM_VER_INDEX(pParam)];
         uint8_t *pBuf = GlobalFromVerBuf(pDecoder);
         memcpy(pBuf, pDecoder->blocks[VER_RECOVERY_INDEX(pParam, 0)].pData, pParam->BlockBytes);
         for (i = 1; i < pParam->HorLocalCount; i++)
@@ -358,6 +371,7 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
         pDecoder->totalGlobalRecovery++;
         ret = true;
     }
+#endif
 
     return ret;
 }
