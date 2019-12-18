@@ -102,7 +102,7 @@ bool ValidateSolution(CM256Block* blocks, int blockCount, int blockBytes)
             if (blockData[j] != expected)
             {
                 printf("[%d, %d]=%d(%d) ", i, j, (int)blockData[j], (int)expected);
-                ret = false;
+                return false;
             }
         }
     }
@@ -629,6 +629,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
                 ii = (rand() % (originalCount + recoveryCount));
                 pShard = ii < originalCount ? orig_data + ii * shardSize : recoveryData + (ii - originalCount) * shardSize;
             } while ( LRC_Decode(hDecode, pShard) <= 0 );
+            LRC_FreeHandle(hDecode);
             QueryPerformanceCounter(&t1);
 
             tsum.QuadPart = t1.QuadPart - t0.QuadPart;

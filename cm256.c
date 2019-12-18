@@ -559,8 +559,7 @@ void Decode(CM256Decoder *pDecoder)
     {
         uint8_t* blockData = pDecoder->recoveryBlock[i]->pData;
 
-        pDecoder->recoveryBlock[i]->lrcIndex = pDecoder->ErasuresIndices[i];
-        pDecoder->recoveryBlock[i]->decodeIndex = pDecoder->recoveryBlock[i]->lrcIndex;
+        pDecoder->recoveryBlock[i]->decodeIndex = pDecoder->recoveryBlock[i]->lrcIndex = pDecoder->ErasuresIndices[i];
 
         gf256_div_mem(blockData, blockData, diag_D[i], pDecoder->Params.BlockBytes);
     }
