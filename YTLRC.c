@@ -29,7 +29,7 @@
 
 //#include <stdlib.h>
 #include "cm256.h"
-#include "ytlrc.h"
+#include "YTLRC.h"
 
 typedef struct {    
     bool bIsUsed;
