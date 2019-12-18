@@ -57,3 +57,4 @@ Temporary Items
 # Comiple configuration files
 .vscode/*
 *.exe
+testdata/*

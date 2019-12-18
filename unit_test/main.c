@@ -647,9 +647,71 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
     return true;
 }
 
+bool RebuildTest(int originalCount, int iLost, int recoveryCount, int numLoops, int shardSize)
+{
+    printf("-----Start test LRC_Initial with globalRecoveryCount=34,maxHandles=3 --------\n");
+    if ( !LRC_Initial(recoveryCount, 10) ) {
+       printf("   LRC_Initial failed\n");
+       return false;
+   }
+   printf("  LRC_Initial ok\n"); 
+   printf("----- Start test LRC_BeginRebuild with originalCount=110,iLost=6,shardSize=16384,*pData-------------\n");
+   uint8_t * rebuilddata = (malloc(shardSize));
+   short handle=LRC_BeginRebuild(originalCount, iLost, shardSize, rebuilddata);
+   if (handle < 0){
+      printf("   LRC_BeginRebuild failed and return handle is %d\n",handle);
+      return 1;
+   }
+   printf("   LRC_BeginRebuild ok and return handle is %d\n",handle);
+   printf("----- Start test LRC_NextRequestList with  handle  to get shards list of needed shards index----------\n"); 
+   uint8_t needlist[256];
+   int n = LRC_NextRequestList(handle,needlist);
+   if (n < 0){
+       printf("   something wrong\n");
+       return 1;
+   }
+   int i;
+   printf("   Return the number of needed shards is %d:\n", n);
+   for (i=0; i < n; i++){
+       printf("shard index:%d\n", (int)needlist[i]);
+   }
+   printf("----- Start test LRC_OneShardForRebuild with  handle and new needed shards to get shards list of needed shards index----------\n");
+   FILE *fp;
+   short ret;
+   char dir[128];
+   char * shardbuf=(char*)(malloc(shardSize));
+   for (i=0;i < n;i++){
+      sprintf(dir,"testdata\\test%d.dat",(short)needlist[i]);
+      if((fp=fopen(dir,"rb"))==NULL)
+      {
+         printf("   file %s  cannot open \n",dir);
+      }
+      ret=0;
+      fread(shardbuf, shardSize, 1, fp);
+      fclose(fp);
+      ret=LRC_OneShardForRebuild(handle,shardbuf);
+      if (ret >0)
+         break;
+      if (ret < 0){
+         printf("   file %s  add to rebuilder error \n",dir);
+         return 1;
+      }
+   }
+   if (ret >0){
+      printf("shard data rebhuild complete");
+   }
+   sprintf(dir,"testdata\\rebuild_test%d.dat", iLost);
+   if (!access(dir,0))
+      remove(dir);
+   fp=fopen(dir, "wb");
+   fwrite(rebuilddata,16384,1,fp);
+   fclose(fp);
+
+}
+
 int main(int argc, const char *argv[])
 {
-    bool bInitTest = TRUE;
+    bool bTest[10] = {false, false, false, false};
     int minOriginalCount = 128;
     int maxOriginalCount = 128;
     int recoveryCount = 12;
@@ -659,7 +721,10 @@ int main(int argc, const char *argv[])
     if (argc > 1) {
         int argv1;
         sscanf(argv[1], "%d", &argv1);
-        bInitTest = (argv1 != 0);
+        while (argv1 > 0) {
+            bTest[argv1 % 10] = true;
+            argv1 /= 10;
+        }
     }
     if (argc > 2)
         sscanf(argv[2], "%d", &minOriginalCount);
@@ -672,18 +737,26 @@ int main(int argc, const char *argv[])
     if (argc > 6)
         sscanf(argv[6], "%d", &shardSize);
 
-    if ( bInitTest ) {
+    if ( bTest[0] ) {
        if (!ExampleFileUsage())
             return(1);
         if (!CheckMemSwap())
            return(4);
         if (!FinerPerfTimingTest())
             return(2);
+    }
+    if ( bTest[1] ) {
         if ( !BulkPerfTesting(minOriginalCount, maxOriginalCount, recoveryCount, recoveryCount+2) )
             return 3;
     }
-    if (!LRCTesting(minOriginalCount, maxOriginalCount, recoveryCount, numLoops, shardSize))
-        return(4);
+    if ( bTest[2] ) {
+        if (!LRCTesting(minOriginalCount, maxOriginalCount, recoveryCount, numLoops, shardSize))
+            return(4);
+    }
+    if ( bTest[3] ) {
+        if (!RebuildTest(minOriginalCount, maxOriginalCount, recoveryCount, numLoops, shardSize))
+            return(4);
+    }
 
     return 0;
 }

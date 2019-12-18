@@ -574,6 +574,7 @@ extern short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
         rebuilders[i].bIsUsed = true;
         rebuilders[i].iLost = iLost;
         rebuilders[i].decoderHandle = -1;
+        rebuilders[i].stage = INIT_REBUILD;
         rebuilders[i].pRepairedData = pData;
         *rebuilders[i].pRepairedData++ = iLost;   // Index byte
 
@@ -725,8 +726,8 @@ extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
     short i;
     if (handle < maxDecoders || handle >= maxDecoders + maxRebuilders || NULL == pShardData)
         return -1;
-    Rebuilder *pRebuilder = &rebuilders[handle];
     handle -= maxDecoders;
+    Rebuilder *pRebuilder = &rebuilders[handle];
     CM256LRC *pParam = &pRebuilder->param;
     int blockBytes = pParam->BlockBytes;
     const uint8_t *pShard = pShardData;
@@ -739,15 +740,17 @@ extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
     pRebuilder->shards[pRebuilder->numShards++] = pShard++;    // pShard skips index byte
     switch (pRebuilder->stage) {
     case HOR_REBUILD:
-    case VER_REBUILD:
     case HOR_RECOVERY_REBUILD:
-    case VER_RECOVERY_REBUILD:
     case GLOBAL_RECOVERY_REBUILD:
         gf256_add_mem(pRebuilder->pRepairedData, pShard, blockBytes);
         if (--pRebuilder->remainShards <= 0)
             return 1;
         break;
 
+    case VER_REBUILD:
+    case VER_RECOVERY_REBUILD:
+        break;
+        
     case GLOBAL_REBUILD:
         if ( !LRC_Decode(pRebuilder->decoderHandle, pRebuilder->shards[i]) )
             break;
