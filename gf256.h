@@ -59,7 +59,7 @@
 #if defined(ANDROID) || defined(IOS) || defined(LINUX_ARM)
     #define GF256_TARGET_MOBILE
 #endif // ANDROID
-
+ #define GF256_TARGET_MOBILE
 #if defined(__AVX2__) //|| (defined (_MSC_VER) && _MSC_VER >= 1900)
     #define GF256_TRY_AVX2 /* 256-bit */
 //    #include <immintrin.h>
