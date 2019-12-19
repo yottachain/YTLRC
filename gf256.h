@@ -174,13 +174,8 @@ typedef struct
 
     /// Polynomial used
     unsigned Polynomial;
-
-#ifdef TANGCODE
-    /// 128+M Recovery Matrixes
-    static const int Max128RecoveryMatrixes = 36;
-    uint8_t GF256_128[Max128RecoveryMatrixes][128];
-#endif
 } gf256_ctx;
+
 
 #ifdef _MSC_VER
     #pragma warning(pop)
@@ -281,12 +276,20 @@ static GF256_FORCE_INLINE void gf256_div_mem(void * GF256_RESTRICT vz,
     gf256_mul_mem(vz, vx, y == 1 ? (uint8_t)1 : GF256Ctx.GF256_INV_TABLE[y], bytes);
 }
 
+// This function generates each matrix element based on x_i, x_0, y_j
+// Note that for x_i == x_0, this will return 1, so it is better to unroll out the first row.
+static GF256_FORCE_INLINE unsigned char GetMatrixElement(unsigned char iMatrix, unsigned char matrixLen, unsigned char iElement)
+{
+    //assert(iMatrix >= matrixLen);
+    return gf256_div(gf256_add(iElement, matrixLen), gf256_add(iMatrix, iElement));
+}
 
 //------------------------------------------------------------------------------
 // Misc Operations
 
 /// Swap two memory buffers in-place
 void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
+
 
 
 #ifdef __cplusplus

@@ -272,7 +272,7 @@ static short CheckAndRecoverVer(DecoderLRC *pDecoder, short x)
             pDecoder->blocks[index2].lrcIndex = VER_RECOVERY_INDEX(pParam, x);
             pDecoder->blocks[index2].decodeIndex = VER_DECODE_INDEX(pParam);
             pDecoder->blocks[index2].pData = pDecoder->pDecodedData + index2 * pParam->BlockBytes;
-            /* Copy horizontal recovery shard data to missing shard, it will be recovered to decoded data by cm256_decode */
+            /* Copy vertical recovery shard data to missing shard, it will be recovered to decoded data by cm256_decode */
             memcpy(pDecoder->blocks[index2].pData, pDecoder->blocks[VER_RECOVERY_INDEX(pParam, x)].pData, pParam->BlockBytes);
 
             cm256_encoder_params params;
@@ -333,10 +333,10 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
     }
 
 #ifdef NOT_USE
-    CM256Block *pShard;
+    CM256Block *pBlock;
     if ( pDecoder->numHorRecovery == pParam->VerLocalCount && NULL == pShard->pData ) {
         /* There is an additional global recovery shard from horizonal recovery shards */
-        pShard = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
+        pBlock = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
         uint8_t *pBuf = GlobalFromHorBuf(pDecoder);
         memcpy(pBuf, pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, 0)].pData, pParam->BlockBytes);
         for (i = 1; i < pParam->VerLocalCount; i++) {
@@ -349,9 +349,9 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
                 pBuf[j] ^= *p++;
 #endif
         }
-        pShard->pData = pBuf;
-        pShard->lrcIndex = GLOBAL_FROM_HOR_INDEX(pParam);
-        pShard->decodeIndex = HOR_DECODE_INDEX(pParam);
+        pBlock->pData = pBuf;
+        pBlock->lrcIndex = GLOBAL_FROM_HOR_INDEX(pParam);
+        pBlock->decodeIndex = HOR_DECODE_INDEX(pParam);
 
         pDecoder->totalGlobalRecovery++;
         ret = true;
@@ -678,7 +678,7 @@ extern short LRC_NextRequestList(short handle, char *pList)
         rebuilders[handle].stage = GLOBAL_REBUILD;
         numRequest = 0;
         unsigned short nLost = 0;
-        for (i = 0; i < rebuilders[handle].param.OriginalCount; i++) {
+        for (i = 0; i < rebuilders[handle].param.OriginalCount; i++) {                                                  
             if (LOST == rebuilders[handle].shardStatus[i])
                 nLost++;
             else if (EXISTED != rebuilders[handle].shardStatus[i])
@@ -724,6 +724,7 @@ extern short LRC_NextRequestList(short handle, char *pList)
 extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
 {
     short i;
+    uint8_t matrixElement;
     if (handle < maxDecoders || handle >= maxDecoders + maxRebuilders || NULL == pShardData)
         return -1;
     handle -= maxDecoders;
@@ -748,7 +749,40 @@ extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
         break;
 
     case VER_REBUILD:
+        if (--pRebuilder->remainShards <= 0) {
+            /* Enough to recover */
+            assert(pRebuilder->numShards == pParam->VerLocalCount);
+            CM256Block blocks[32];  // 32 is enough for vertical count
+            for (i = 0; i < pParam->VerLocalCount; i++) {
+                uint8_t j = pRebuilder->shards[i][0];
+                if (j < pParam->OriginalCount)
+                    blocks[i].lrcIndex = blocks[i].decodeIndex = i;
+                else {
+                    blocks[i].lrcIndex = j - pParam->OriginalCount + pParam->TotalOriginalCount;
+                    blocks[i].decodeIndex = pParam->TotalOriginalCount + 1;
+                }
+                blocks[i].pData = (uint8_t*)pRebuilder->shards[i] + 1;
+            }
+            cm256_encoder_params params;
+            params.BlockBytes = pParam->BlockBytes;
+            params.TotalOriginalCount = pParam->TotalOriginalCount;
+            params.FirstElement = 0;
+            params.OriginalCount = pParam->VerLocalCount;
+            params.RecoveryCount = 1;
+            params.Step = 1;
+
+            if ( cm256_decode(params, blocks) == 0)
+                return 1;
+            else
+                return -7;            
+        }
+        break;
+
     case VER_RECOVERY_REBUILD:
+        matrixElement = GetMatrixElement(pParam->TotalOriginalCount+1, pParam->TotalOriginalCount, index);
+        gf256_muladd_mem(pRebuilder->pRepairedData, matrixElement, pShard, pParam->BlockBytes);
+        if (--pRebuilder->remainShards <= 0)
+            return 1;
         break;
         
     case GLOBAL_REBUILD:
