@@ -92,11 +92,14 @@ short LRC_NextRequestList(short handle, char *pList);
  * pShard: shard data
  * return: >0 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required, <0 if something wrong
  */
-short LRC_OneShardForRebuild(short handle, const void *pShard);
+ short LRC_OneShardForRebuild(short handle, const void *pShard);
 
 /*
  * Abandon a decode or rebuild process
  */
+//void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 void LRC_FreeHandle(short handle);
+short LRC_OneShard(short handle, const void *pShardData);
+
 
 #endif  // YTLRC_H

@@ -125,7 +125,7 @@ int cm256_init_(int version)
 //-----------------------------------------------------------------------------
 // Encoding
 
-void CM256EncodeBlock(
+extern void CM256EncodeBlock(
     cm256_encoder_params params, // Encoder parameters
     CM256Block* originals,      // Array of pointers to original blocks
     int recoveryBlockIndex,      // Return value from cm256_get_recovery_block_index()
@@ -190,12 +190,12 @@ void CM256EncodeBlock(
     }
 }
 
-int cm256_encode(
+extern int cm256_encode(
     CM256LRC paramLRC, // LRC Encoder params
     CM256Block* originals,      // Array of pointers to original blocks
     uint8_t* recoveryData)        // Output recovery blocks end-to-end
 {
-    short i, j;
+    short i;
     // Validate input:
     if (paramLRC.OriginalCount <= 0 ||
         paramLRC.TotalRecoveryCount <= 3 ||
@@ -282,7 +282,7 @@ int cm256_encode(
 //-----------------------------------------------------------------------------
 // Decoding
 
-bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks)
+extern bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks)
 {
     int ii;
     pDecoder->Params = *pParams;
@@ -330,7 +330,7 @@ bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pPara
     return true;
 }
 
-void DecodeM1(CM256Decoder *pDecoder)
+extern void DecodeM1(CM256Decoder *pDecoder)
 {
     int ii;
     // XOR all other blocks into the recovery block
@@ -366,7 +366,7 @@ void DecodeM1(CM256Decoder *pDecoder)
 }
 
 // Generate the LU decomposition of the matrix
-void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
+extern void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
 {
     // Schur-type-direct-Cauchy algorithm 2.5 from
     // "Pivoting and Backward Stability of Fast Algorithms for Solving Cauchy Linear Equations"
@@ -475,7 +475,7 @@ void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t
     diag_D[N - 1] = gf256_div(gf256_mul(L_nn, U_nn), gf256_add(x_n, y_n));
 }
 
-void Decode(CM256Decoder *pDecoder)
+extern void Decode(CM256Decoder *pDecoder)
 {
     int originalIndex, recoveryIndex, i, j;
     // Matrix size is NxN, where N is the number of recovery blocks used.
@@ -572,7 +572,7 @@ void Decode(CM256Decoder *pDecoder)
         free(dynamicMatrix);
 }
 
-int cm256_decode(
+extern int cm256_decode(
     cm256_encoder_params params, // Encoder params
     CM256Block* blocks)         // Array of 'originalCount' blocks as described above
 {

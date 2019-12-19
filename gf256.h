@@ -181,7 +181,7 @@ typedef struct
     #pragma warning(pop)
 #endif // _MSC_VER
 
-gf256_ctx GF256Ctx;
+extern gf256_ctx GF256Ctx;
 
 
 //------------------------------------------------------------------------------
@@ -288,7 +288,7 @@ static GF256_FORCE_INLINE unsigned char GetMatrixElement(unsigned char iMatrix, 
 // Misc Operations
 
 /// Swap two memory buffers in-place
-void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
+//void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
 
 
 

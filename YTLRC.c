@@ -27,9 +27,12 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-//#include <stdlib.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
 #include "cm256.h"
 #include "YTLRC.h"
+
 
 typedef struct {    
     bool bIsUsed;
@@ -60,10 +63,12 @@ static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer;
 }
+/*
 static inline uint8_t *GlobalFromHorBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer + pDecoder->param.BlockBytes + 1;
 }
+*/
 static inline uint8_t *GlobalFromVerBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer + 2 * (pDecoder->param.BlockBytes+1);
@@ -89,7 +94,7 @@ typedef struct {
 
 static Rebuilder *rebuilders = NULL;
 static short maxRebuilders = 0;
-
+extern void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 /*
  * Initialize
  * numGlobalRecoveryCount: number of global recovery shards
@@ -98,7 +103,7 @@ static short maxRebuilders = 0;
  */
 extern short LRC_Initial(short n, short maxHandles)
 {
-    short i, j;
+    short i;
     if (cm256_init() || n <= 2 || maxHandles <= 0)
         return false;
 
@@ -130,7 +135,7 @@ extern short LRC_Initial(short n, short maxHandles)
  *                the leading byte of each shard is index of this shard
  * return: number of recovery shards, <=0 fails
  */
-short LRC_Encode(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData)
+extern short LRC_Encode(const void *originalShards[], unsigned short originalCount, unsigned long shardSize, void *pRecoveryData)
 {
     CM256LRC    param;
     CM256Block blocks[MAXSHARDS];
@@ -384,7 +389,7 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
  */
 extern short LRC_Decode(short handle, const void *pData)
 {
-    short i, j;
+    short i;
     short x, y;
 
     if (handle < 0 || handle >= maxDecoders || !decoders[handle].bIsUsed || NULL == pData)
@@ -638,7 +643,7 @@ extern short LRC_NextRequestList(short handle, char *pList)
                 short x = recoveryIndex - pParam->FirstVerRecoveryIndex;
                 for (j = 0; j < pParam->VerLocalCount; j++)
                     pList[j] = j * pParam->HorLocalCount + x;
-            } else if ( recoveryIndex >= pParam->FirstGlobalRecoveryIndex && recoveryIndex < pParam->FirstGlobalRecoveryIndex + pParam->GlobalRecoveryCount || recoveryIndex == pParam->LocalRecoveryOfGlobalRecoveryIndex) {
+            } else if ((recoveryIndex >= pParam->FirstGlobalRecoveryIndex && recoveryIndex < pParam->FirstGlobalRecoveryIndex + pParam->GlobalRecoveryCount) || recoveryIndex == pParam->LocalRecoveryOfGlobalRecoveryIndex) {
                 /* One of global recovery shard */
                 rebuilders[handle].stage = GLOBAL_RECOVERY_REBUILD;
                 rebuilders[handle].remainShards = numRequest = pParam->GlobalRecoveryCount;
@@ -711,8 +716,13 @@ extern short LRC_NextRequestList(short handle, char *pList)
 
     }
     for (j = 0; j < numRequest; j++)
-        rebuilders[handle].shardStatus[pList[j]] = REQUEST;
+        rebuilders[handle].shardStatus[(int)pList[j]] = REQUEST;
     return numRequest;
+}
+
+extern short LRC_OneShard(short handle, const void *pShardData)
+{
+    return 1;
 }
 
 /*
@@ -723,7 +733,7 @@ extern short LRC_NextRequestList(short handle, char *pList)
  */
 extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
 {
-    short i;
+    short i = 0;
     uint8_t matrixElement;
     if (handle < maxDecoders || handle >= maxDecoders + maxRebuilders || NULL == pShardData)
         return -1;
@@ -743,7 +753,8 @@ extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
     case HOR_REBUILD:
     case HOR_RECOVERY_REBUILD:
     case GLOBAL_RECOVERY_REBUILD:
-        gf256_add_mem(pRebuilder->pRepairedData, pShard, blockBytes);
+        //printf("-----------------------01-----------------\n");
+        gf256_add_mem(pRebuilder->pRepairedData,pShard, blockBytes);
         if (--pRebuilder->remainShards <= 0)
             return 1;
         break;
