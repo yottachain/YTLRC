@@ -647,66 +647,89 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
     return true;
 }
 
-bool RebuildTest(int originalCount, int iLost, int recoveryCount, int numLoops, int shardSize)
+bool RebuildTest(int originalCount, int probability, int recoveryCount, int numLoops, int shardSize)
 {
+    int i, j, k, iLoop;
     printf("-----Start test LRC_Initial with globalRecoveryCount=34,maxHandles=3 --------\n");
     if ( !LRC_Initial(recoveryCount, 10) ) {
-       printf("   LRC_Initial failed\n");
-       return false;
-   }
-   printf("  LRC_Initial ok\n"); 
-   printf("----- Start test LRC_BeginRebuild with originalCount=110,iLost=6,shardSize=16384,*pData-------------\n");
-   uint8_t * rebuilddata = (malloc(shardSize));
-   short handle=LRC_BeginRebuild(originalCount, iLost, shardSize, rebuilddata);
-   if (handle < 0){
-      printf("   LRC_BeginRebuild failed and return handle is %d\n",handle);
-      return 1;
-   }
-   printf("   LRC_BeginRebuild ok and return handle is %d\n",handle);
-   printf("----- Start test LRC_NextRequestList with  handle  to get shards list of needed shards index----------\n"); 
-   uint8_t needlist[256];
-   int n = LRC_NextRequestList(handle,needlist);
-   if (n < 0){
-       printf("   something wrong\n");
-       return 1;
-   }
-   int i;
-   printf("   Return the number of needed shards is %d:\n", n);
-   for (i=0; i < n; i++){
-       printf("shard index:%d\n", (int)needlist[i]);
-   }
-   printf("----- Start test LRC_OneShardForRebuild with  handle and new needed shards to get shards list of needed shards index----------\n");
-   FILE *fp;
-   short ret;
-   char dir[128];
-   char * shardbuf=(char*)(malloc(shardSize));
-   for (i=0;i < n;i++){
-      sprintf(dir,"testdata\\test%d.dat",(short)needlist[i]);
-      if((fp=fopen(dir,"rb"))==NULL)
-      {
-         printf("   file %s  cannot open \n",dir);
-      }
-      ret=0;
-      fread(shardbuf, shardSize, 1, fp);
-      fclose(fp);
-      ret=LRC_OneShardForRebuild(handle,shardbuf);
-      if (ret >0)
-         break;
-      if (ret < 0){
-         printf("   file %s  add to rebuilder error \n",dir);
-         return 1;
-      }
-   }
-   if (ret >0){
-      printf("shard data rebhuild complete");
-   }
-   sprintf(dir,"testdata\\rebuild_test%d.dat", iLost);
-   if (!access(dir,0))
-      remove(dir);
-   fp=fopen(dir, "wb");
-   fwrite(rebuilddata,16384,1,fp);
-   fclose(fp);
+        printf("   LRC_Initial failed\n");
+        return false;
+    }
+    printf("  LRC_Initial ok\n"); 
+    printf("----- Start test LRC_BeginRebuild with originalCount=110,iLost=6,shardSize=16384,*pData-------------\n");
+    uint8_t * rebuilddata = malloc(shardSize);
+    if (NULL == rebuilddata)
+        return false;
+    uint8_t * shardbuf = malloc(MAXSHARDS * shardSize);
+    if (NULL == shardbuf) {
+        free (rebuilddata);
+        return false;
+    }
+    uint8_t *shards[MAXSHARDS];
+    for (i = 0; i < MAXSHARDS; i++)
+        shards[i] = shardbuf + i * shardSize;
+    for (iLoop = 0; iLoop < numLoops; ) {
+        short iLost = rand() % 256;
+        short handle=LRC_BeginRebuild(originalCount, iLost, shardSize, rebuilddata);
+        if (handle < 0)
+            continue;
+        iLoop++;
+        printf("\nTest %d: Lost shard %d, rebuild handle = %d\n", iLoop, iLost, handle);
 
+        /* Prepare test data */
+        for (i = 0; i < originalCount; i++) {
+            shards[i][0] = i;
+            for (j = 1; j < shardSize; j++)
+                shards[i][j] = rand();
+        }
+        LRC_Encode(shards, originalCount, shardSize, shardbuf + originalCount * shardSize);
+
+        uint8_t needlist[256];
+        short m, n;
+        bool bRebuildOK = false;
+        while ( !bRebuildOK && (n = LRC_NextRequestList(handle, needlist)) > 0 ) {
+            printf("Request %d shards:", n);
+            for (i=0; i < n; i++)
+                printf("%d ", (int)needlist[i]);
+            printf("\n");
+            short ret;
+            for (i=0;i < n;i++){
+                for (m = rand() % n; 0xff == needlist[m]; m = rand() % n);
+                /* find a random shard that is not used */
+                int index = needlist[m];
+                needlist[m] = 0xff; // Mark this shard being used
+                if ( n < 100 && (rand() % 100) > probability ) {
+                    /* Emulate lost one more shard for locally repairing process */
+                    printf("%d is unavailable\n", index);
+                    continue;
+                }
+
+                ret = LRC_OneShardForRebuild(handle, shards[index]);
+                if (ret > 0) {
+                    printf("Rebuild Completed ...... ");
+                    bRebuildOK = true;
+                    break;
+                }
+                if (ret < 0){
+                    printf("add shard %d to rebuilder error \n", index);
+                    return false;
+                }
+            }
+        }
+        LRC_FreeHandle(handle);
+        if (bRebuildOK) {
+            if (memcmp(shards[iLost], rebuilddata, shardSize) == 0)
+                printf("Verify data OK\n");
+            else {
+                printf("Rebuild data error\n");
+                return false;
+            }
+        } else {
+            printf("Rebuild failed(not enough shards to rebuild)\n");
+            return false;
+        }
+   }
+   return true;
 }
 
 int main(int argc, const char *argv[])

@@ -84,7 +84,7 @@ short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsig
  * pList: output, at least 256 bytes space, return new list of required shards
  * return: number of shards in new list. 0 if no way to rebuild, <0 if something wrong
  */
-short LRC_NextRequestList(short handle, char *pList);
+short LRC_NextRequestList(short handle, unsigned char *pList);
 
 /*
  * Provide one shard for rebuilding lost shards
@@ -97,9 +97,7 @@ short LRC_NextRequestList(short handle, char *pList);
 /*
  * Abandon a decode or rebuild process
  */
-//void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 void LRC_FreeHandle(short handle);
-short LRC_OneShard(short handle, const void *pShardData);
 
 
 #endif  // YTLRC_H

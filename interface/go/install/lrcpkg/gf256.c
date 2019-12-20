@@ -1303,6 +1303,8 @@ void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx, uin
 void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
                                  const void * GF256_RESTRICT vx, int bytes)
 {
+if (vx < 0x1000)
+return;
     // Use a single if-statement to handle special cases
     if (y <= 1)
     {
