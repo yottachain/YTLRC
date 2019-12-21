@@ -569,7 +569,11 @@ void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shard
 extern short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData)
 {
     short i, j;
-    if (originalCount <= 0 || originalCount >= MAXSHARDS || iLost >= originalCount)
+    CM256LRC param;
+    if (originalCount <= 0 || originalCount >= MAXSHARDS)
+        return -1;
+    InitialParam(&param, originalCount, shardSize, true);
+    if (iLost >= originalCount + param.TotalRecoveryCount)
         return -1;
     for (i = 0; i < maxRebuilders; i++) {
         if ( rebuilders[i].bIsUsed )
@@ -589,8 +593,8 @@ extern short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
             rebuilders[i].shards[j] = NULL;
         rebuilders[i].numShards = 0;
         rebuilders[i].pDecodedData = NULL;
+        rebuilders[i].param = param;
 
-        InitialParam(&rebuilders[i].param, originalCount, shardSize, true);
         return maxDecoders + i;
     }
     return -3;
@@ -816,11 +820,11 @@ extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
         }
         /* Lost one of recovery shards */
         short recoveryIndex = pRebuilder->iLost - pParam->OriginalCount;
-        memset(pRebuilder->pDecodedData + pParam->OriginalCount * blockBytes, 0, (pParam->TotalRecoveryCount - pParam->OriginalCount) * blockBytes);
+        memset(pRebuilder->pDecodedData + pParam->OriginalCount * blockBytes, 0, (pParam->TotalOriginalCount - pParam->OriginalCount) * blockBytes);
         if ( recoveryIndex >= pParam->FirstHorRecoveryIndex && recoveryIndex < pParam->FirstHorRecoveryIndex + pParam->VerLocalCount ) {
             /* Horizonal recovery shard */
             uint8_t *pData = pRebuilder->pDecodedData + (recoveryIndex - pParam->FirstHorRecoveryIndex) * pParam->HorLocalCount * blockBytes;
-            gf256_add2_mem(pRebuilder->pRepairedData, pData, pData + blockBytes, blockBytes);
+            gf256_addset_mem(pRebuilder->pRepairedData, pData, pData + blockBytes, blockBytes);
             pData += 2 * blockBytes;
             for (i = 2; i < pParam->HorLocalCount; i++) {
                 gf256_add_mem(pRebuilder->pRepairedData, pData, blockBytes);
