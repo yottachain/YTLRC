@@ -54,7 +54,7 @@ typedef struct {
                         // one for zero shard
 } DecoderLRC;
 #define SHARD_EXISTED(pDecoder, index)   (NULL != pDecoder->blocks[index].pData)
-#define DECODE_MAGIC 0x19691224
+#define DECODE_MAGIC 0x59541224
 
 static short globalRecoveryCount = 10;
 
@@ -62,12 +62,10 @@ static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer;
 }
-/*
 static inline uint8_t *GlobalFromHorBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer + pDecoder->param.BlockBytes + 1;
 }
-*/
 static inline uint8_t *GlobalFromVerBuf(DecoderLRC *pDecoder)
 {
     return pDecoder->pBuffer + 2 * (pDecoder->param.BlockBytes+1);
@@ -90,10 +88,8 @@ typedef struct {
     DecoderLRC *pDecoder; // Used for GLOBAL_REBUILD
     uint8_t *pDecodedData; // Used for GLOBAL_REBUILD
 } Rebuilder;
-#define REBUILD_MAGIC 0x20191224
+#define REBUILD_MAGIC 0x59542019
 
-//static Rebuilder *rebuilders = NULL;
-//static short maxRebuilders = 0;
 extern void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 /*
  * Initialize
@@ -106,22 +102,6 @@ extern short LRC_Initial(short n)
     short i;
     if (cm256_init() || n <= 2)
         return false;
-
-#ifdef NOT_USE
-    decoders = malloc(maxHandles * sizeof(DecoderLRC));
-    if (NULL == decoders)
-        return false;
-    maxDecoders = maxHandles;
-    for (i = 0; i < maxDecoders; i++)
-        decoders[i].bIsUsed = false;
-
-    rebuilders = malloc(maxHandles * sizeof(Rebuilder));
-    if (NULL == rebuilders)
-        return false;
-    maxRebuilders = maxHandles;
-    for (i = 0; i < maxRebuilders; i++)
-        pRebuilder->bIsUsed = false;
-#endif
 
     globalRecoveryCount = n - 2;
 
@@ -336,10 +316,9 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
     }
 
 #ifdef NOT_USE
-    CM256Block *pBlock;
-    if ( pDecoder->numHorRecovery == pParam->VerLocalCount && NULL == pShard->pData ) {
+    CM256Block *pBlock = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
+    if ( pDecoder->numHorRecovery == pParam->VerLocalCount && NULL == pBlock->pData ) {
         /* There is an additional global recovery shard from horizonal recovery shards */
-        pBlock = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
         uint8_t *pBuf = GlobalFromHorBuf(pDecoder);
         memcpy(pBuf, pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, 0)].pData, pParam->BlockBytes);
         for (i = 1; i < pParam->VerLocalCount; i++) {
@@ -360,16 +339,16 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
         ret = true;
     }
 
-    if ( pDecoder->numVerRecovery == pParam->HorLocalCount && NULL == pShard->pData ) {
+    pBlock = &pDecoder->blocks[GLOBAL_FROM_VER_INDEX(pParam)];
+    if ( pDecoder->numVerRecovery == pParam->HorLocalCount && NULL == pBlock->pData ) {
         /* There is an additional global recovery shard from vertical recovery shards */
-        pShard = &pDecoder->blocks[GLOBAL_FROM_VER_INDEX(pParam)];
         uint8_t *pBuf = GlobalFromVerBuf(pDecoder);
         memcpy(pBuf, pDecoder->blocks[VER_RECOVERY_INDEX(pParam, 0)].pData, pParam->BlockBytes);
         for (i = 1; i < pParam->HorLocalCount; i++)
             gf256_add_mem(pBuf, pDecoder->blocks[VER_RECOVERY_INDEX(pParam, i)].pData, pParam->BlockBytes);
-        pShard->pData = pBuf;
-        pShard->lrcIndex = GLOBAL_FROM_VER_INDEX(pParam);
-        pShard->decodeIndex = VER_DECODE_INDEX(pParam);
+        pBlock->pData = pBuf;
+        pBlock->lrcIndex = GLOBAL_FROM_VER_INDEX(pParam);
+        pBlock->decodeIndex = VER_DECODE_INDEX(pParam);
 
         pDecoder->totalGlobalRecovery++;
         ret = true;
