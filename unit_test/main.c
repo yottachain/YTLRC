@@ -575,7 +575,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
 
     if ( minOriginalCount <= 1 || maxOriginalCount >= MAXSHARDS - recoveryCount - 40 )
         return false;
-    if ( !LRC_Initial(recoveryCount, 20) )
+    if ( !LRC_Initial(recoveryCount) )
         return false;
 
     int MaxBlockBytes = shardSize / 10 * 10 + 10; // multiple of 10
@@ -617,8 +617,8 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
         /* Decode */
         for (j = 0; j < numLoops; j++) {
             QueryPerformanceCounter(&t0);
-            short hDecode = LRC_BeginDecode(originalCount, shardSize, decodedData);
-            if ( hDecode < 0 ) {
+            void *hDecode = LRC_BeginDecode(originalCount, shardSize, decodedData);
+            if ( NULL == hDecode ) {
                 printf("Begin decode error\n");
                 return false;
             }
@@ -651,7 +651,7 @@ bool RebuildTest(int originalCount, int probability, int recoveryCount, int numL
 {
     int i, j, k, iLoop;
     printf("-----Start test LRC_Initial with globalRecoveryCount=34,maxHandles=3 --------\n");
-    if ( !LRC_Initial(recoveryCount, 10) ) {
+    if ( !LRC_Initial(recoveryCount) ) {
         printf("   LRC_Initial failed\n");
         return false;
     }
@@ -670,11 +670,11 @@ bool RebuildTest(int originalCount, int probability, int recoveryCount, int numL
         shards[i] = shardbuf + i * shardSize;
     for (iLoop = 0; iLoop < numLoops; ) {
         short iLost = rand() % 256;
-        short handle=LRC_BeginRebuild(originalCount, iLost, shardSize, rebuilddata);
-        if (handle < 0)
+        void *handle = LRC_BeginRebuild(originalCount, iLost, shardSize, rebuilddata);
+        if (NULL == handle)
             continue;
         iLoop++;
-        printf("\nTest %d: Lost shard %d, rebuild handle = %d\n", iLoop, iLost, handle);
+        printf("\nTest %d: Lost shard %d, rebuild handle = %p\n", iLoop, iLost, handle);
 
         /* Prepare test data */
         for (i = 0; i < originalCount; i++) {

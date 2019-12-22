@@ -35,7 +35,7 @@
 
 
 typedef struct {    
-    bool bIsUsed;
+    unsigned long magic;
     CM256LRC param;
     uint8_t *pDecodedData;
 
@@ -54,9 +54,8 @@ typedef struct {
                         // one for zero shard
 } DecoderLRC;
 #define SHARD_EXISTED(pDecoder, index)   (NULL != pDecoder->blocks[index].pData)
+#define DECODE_MAGIC 0x19691224
 
-static DecoderLRC *decoders = NULL;
-static short maxDecoders = 0;
 static short globalRecoveryCount = 10;
 
 static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
@@ -79,7 +78,7 @@ static inline uint8_t *ZeroBuf(DecoderLRC *pDecoder)
 }
 
 typedef struct {    
-    bool bIsUsed;
+    unsigned long magic;
     short iLost;
     CM256LRC param;
     uint8_t *pRepairedData;
@@ -88,12 +87,13 @@ typedef struct {
     short remainShards; // Used for HOR_REBUILD, VER_REBUILD, HOR_RECOVERY_REBUILD,  VER_RECOVERY_REBUILD, GLOBAL_RECOVERY_REBUILD
     short numShards; // Number of existing shards
     const uint8_t *shards[MAXSHARDS]; // Existing shards
-    short decoderHandle; // Used for GLOBAL_REBUILD
+    DecoderLRC *pDecoder; // Used for GLOBAL_REBUILD
     uint8_t *pDecodedData; // Used for GLOBAL_REBUILD
 } Rebuilder;
+#define REBUILD_MAGIC 0x20191224
 
-static Rebuilder *rebuilders = NULL;
-static short maxRebuilders = 0;
+//static Rebuilder *rebuilders = NULL;
+//static short maxRebuilders = 0;
 extern void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 /*
  * Initialize
@@ -101,12 +101,13 @@ extern void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigne
  * maxHandles: maximum of decoders or rebuilders working at same time
  * return: 0 if fails
  */
-extern short LRC_Initial(short n, short maxHandles)
+extern short LRC_Initial(short n)
 {
     short i;
-    if (cm256_init() || n <= 2 || maxHandles <= 0)
+    if (cm256_init() || n <= 2)
         return false;
 
+#ifdef NOT_USE
     decoders = malloc(maxHandles * sizeof(DecoderLRC));
     if (NULL == decoders)
         return false;
@@ -119,8 +120,9 @@ extern short LRC_Initial(short n, short maxHandles)
         return false;
     maxRebuilders = maxHandles;
     for (i = 0; i < maxRebuilders; i++)
-        rebuilders[i].bIsUsed = false;
-    
+        pRebuilder->bIsUsed = false;
+#endif
+
     globalRecoveryCount = n - 2;
 
     return true;
@@ -171,51 +173,47 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
  * pData: require at least originalCount * (shardSize-1) space, return original data if success
  * return: handle of this decode process, <0 fails (such as exceed maxHandles)
  */
-extern short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData)
+extern void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData)
 {
-    short i, j;
+    short j;
     if (originalCount <= 0 || originalCount >= MAXSHARDS || NULL == pData)
-        return -1;
-    for (i = 0; i < maxDecoders; i++) {
-        if ( decoders[i].bIsUsed )
-            continue;
-        
-        /* Found an available handle */
-        DecoderLRC *pDecoder = &decoders[i];
-        
-        InitialParam(&pDecoder->param, originalCount, shardSize, true);
-
-        pDecoder->bIsUsed = true;
-        pDecoder->pDecodedData = pData;
-        pDecoder->numShards = 0;
-        for (j = 0; j < MAXSHARDS; j++)
-            pDecoder->blocks[j].pData = NULL;
-        pDecoder->pBuffer = malloc(4 * shardSize);
-        if (NULL == pDecoder->pBuffer)
-            return -2;
-        memset(ZeroBuf(pDecoder), 0, shardSize);  // The last shard is zero shard
-        for (j = pDecoder->param.OriginalCount; j < pDecoder->param.TotalOriginalCount; j++) {
-            pDecoder->blocks[j].pData = ZeroBuf(pDecoder);
-            pDecoder->blocks[j].lrcIndex = j;
-            pDecoder->blocks[j].decodeIndex = j;
-        }
-
-        pDecoder->globalMissed = pDecoder->param.OriginalCount;
-        pDecoder->numGlobalRecovery = 0;
-        pDecoder->totalGlobalRecovery = 0;
-        pDecoder->numHorRecovery = 0;
-        pDecoder->numVerRecovery = 0;
-        for (j = 0; j < pDecoder->param.VerLocalCount; j++)
-            pDecoder->horMissed[j] = pDecoder->param.HorLocalCount;
-        pDecoder->horMissed[pDecoder->param.VerLocalCount - 1] -= pDecoder->param.TotalOriginalCount - pDecoder->param.OriginalCount;
-        for (j = 0; j < pDecoder->param.HorLocalCount; j++)
-            pDecoder->verMissed[j] = pDecoder->param.VerLocalCount;
-        for (j = pDecoder->param.OriginalCount; j < pDecoder->param.TotalOriginalCount; j++)
-                pDecoder->verMissed[j % pDecoder->param.HorLocalCount]--;
-
-        return i;
+        return NULL;
+    
+    DecoderLRC *pDecoder = malloc(sizeof(DecoderLRC));
+    if (NULL == pDecoder)
+        return NULL;
+    pDecoder->magic = DECODE_MAGIC;
+    InitialParam(&pDecoder->param, originalCount, shardSize, true);
+    pDecoder->pDecodedData = pData;
+    pDecoder->numShards = 0;
+    for (j = 0; j < MAXSHARDS; j++)
+        pDecoder->blocks[j].pData = NULL;
+    pDecoder->pBuffer = malloc(4 * shardSize);
+    if (NULL == pDecoder->pBuffer) {
+        free(pDecoder);
+        return NULL;
     }
-    return -1;  // No available handle
+    memset(ZeroBuf(pDecoder), 0, shardSize);  // The last shard is zero shard
+    for (j = pDecoder->param.OriginalCount; j < pDecoder->param.TotalOriginalCount; j++) {
+        pDecoder->blocks[j].pData = ZeroBuf(pDecoder);
+        pDecoder->blocks[j].lrcIndex = j;
+        pDecoder->blocks[j].decodeIndex = j;
+    }
+
+    pDecoder->globalMissed = pDecoder->param.OriginalCount;
+    pDecoder->numGlobalRecovery = 0;
+    pDecoder->totalGlobalRecovery = 0;
+    pDecoder->numHorRecovery = 0;
+    pDecoder->numVerRecovery = 0;
+    for (j = 0; j < pDecoder->param.VerLocalCount; j++)
+        pDecoder->horMissed[j] = pDecoder->param.HorLocalCount;
+    pDecoder->horMissed[pDecoder->param.VerLocalCount - 1] -= pDecoder->param.TotalOriginalCount - pDecoder->param.OriginalCount;
+    for (j = 0; j < pDecoder->param.HorLocalCount; j++)
+        pDecoder->verMissed[j] = pDecoder->param.VerLocalCount;
+    for (j = pDecoder->param.OriginalCount; j < pDecoder->param.TotalOriginalCount; j++)
+            pDecoder->verMissed[j % pDecoder->param.HorLocalCount]--;
+
+    return pDecoder;
 }
 
 /* Recover a horizaonal local group when possible, return the x coordinate of recovered shard, <0 means failed */
@@ -387,14 +385,16 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
  * in: data of this shard
  * return: 0 if collected shards are not enough for decoding, >0 success, automatically free handle, <0 error
  */
-extern short LRC_Decode(short handle, const void *pData)
+extern short LRC_Decode(void *handle, const void *pData)
 {
     short i;
     short x, y;
 
-    if (handle < 0 || handle >= maxDecoders || !decoders[handle].bIsUsed || NULL == pData)
+    if (NULL == handle || NULL == pData)
         return -1;
-    DecoderLRC *pDecoder = &decoders[handle];
+    DecoderLRC *pDecoder = handle;
+    if ( DECODE_MAGIC != pDecoder->magic )
+        return -1;
     uint8_t *pShard = (uint8_t *)pData;
     uint8_t index = pShard[0];
     if (index > pDecoder->param.OriginalCount + pDecoder->param.TotalRecoveryCount)
@@ -512,29 +512,30 @@ extern short LRC_Decode(short handle, const void *pData)
 /*
  * Abandon a decode or rebuild process
  */
-extern void LRC_FreeHandle(short handle)
+extern short LRC_FreeHandle(void *handle)
 {
-    if (handle >= 0 && handle < maxDecoders) {
-        if ( NULL != decoders[handle].pBuffer ) {
-            free(decoders[handle].pBuffer);
-            decoders[handle].pBuffer = NULL;
-        }
-        decoders[handle].pDecodedData = NULL;
-        decoders[handle].bIsUsed = false;
-    } else if (handle >= maxDecoders && handle < maxDecoders + maxRebuilders) {
-        handle -= maxDecoders;
-        if (rebuilders[handle].decoderHandle >= 0) {
-            assert(rebuilders[handle].decoderHandle < maxDecoders);
-            LRC_FreeHandle(rebuilders[handle].decoderHandle);
-            rebuilders[handle].decoderHandle = -1;
-        }
-        if (NULL != rebuilders[handle].pDecodedData) {
-            free(rebuilders[handle].pDecodedData);
-            rebuilders[handle].pDecodedData = NULL;
-        }
-        rebuilders[handle].pRepairedData = NULL;
-        rebuilders[handle].bIsUsed = false;
+    if (NULL == handle)
+        return false;
+    
+    DecoderLRC *pDecoder = handle;
+    if (DECODE_MAGIC == pDecoder->magic) {
+        if ( NULL != pDecoder->pBuffer )
+            free(pDecoder->pBuffer);
+        free(pDecoder);
+        return true;
     }
+
+    Rebuilder *pRebuilder = handle;
+    if (REBUILD_MAGIC == pRebuilder->magic) {
+        if (NULL != pRebuilder->pDecoder)
+            LRC_FreeHandle(pRebuilder->pDecoder);
+        if (NULL != pRebuilder->pDecodedData)
+            free(pRebuilder->pDecodedData);
+        free(pRebuilder);
+        return true;
+    }
+    
+    return false;
 }
 
 short GetHorLocalCount(short originalCount)
@@ -564,40 +565,37 @@ void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shard
  * iLost: order of lost shard
  * shardSize: size of each shard
  * pData: the buffer for rebuilt shard, at least shardSize length
- * return: handle of rebuild process, <0 fails
+ * return: handle of rebuild process, NULL fails
  */
-extern short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData)
+extern void *LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData)
 {
-    short i, j;
+    short j;
     CM256LRC param;
     if (originalCount <= 0 || originalCount >= MAXSHARDS)
-        return -1;
+        return NULL;
     InitialParam(&param, originalCount, shardSize, true);
     if (iLost >= originalCount + param.TotalRecoveryCount)
-        return -1;
-    for (i = 0; i < maxRebuilders; i++) {
-        if ( rebuilders[i].bIsUsed )
-            continue;
-        
-        /* Found an available handle */
-        rebuilders[i].bIsUsed = true;
-        rebuilders[i].iLost = iLost;
-        rebuilders[i].decoderHandle = -1;
-        rebuilders[i].stage = INIT_REBUILD;
-        rebuilders[i].pRepairedData = pData;
-        *rebuilders[i].pRepairedData++ = iLost;   // Index byte
+        return NULL;
+    
+    Rebuilder *pRebuilder = malloc(sizeof(Rebuilder));
+    if (NULL == pRebuilder)
+        return NULL;
+    pRebuilder->magic = REBUILD_MAGIC;
+    pRebuilder->iLost = iLost;
+    pRebuilder->pDecoder = NULL;
+    pRebuilder->stage = INIT_REBUILD;
+    pRebuilder->pRepairedData = pData;
+    *pRebuilder->pRepairedData++ = iLost;   // Index byte
 
-        memset(rebuilders[i].shardStatus, UNKNOWN, sizeof(rebuilders[i].shardStatus));
-        rebuilders[i].shardStatus[iLost] = LOST;
-        for (j = 0; j < MAXSHARDS; j++)
-            rebuilders[i].shards[j] = NULL;
-        rebuilders[i].numShards = 0;
-        rebuilders[i].pDecodedData = NULL;
-        rebuilders[i].param = param;
+    memset(pRebuilder->shardStatus, UNKNOWN, sizeof(pRebuilder->shardStatus));
+    pRebuilder->shardStatus[iLost] = LOST;
+    for (j = 0; j < MAXSHARDS; j++)
+        pRebuilder->shards[j] = NULL;
+    pRebuilder->numShards = 0;
+    pRebuilder->pDecodedData = NULL;
+    pRebuilder->param = param;
 
-        return maxDecoders + i;
-    }
-    return -3;
+    return pRebuilder;
 }
 
 /*
@@ -607,20 +605,24 @@ extern short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
  * pList: output, at least 256 bytes space, return new list of required shards
  * return: number of shards in new list. 0 if no way to rebuild, <0 if something wrong
  */
-extern short LRC_NextRequestList(short handle, unsigned char *pList)
+extern short LRC_NextRequestList(void *handle, unsigned char *pList)
 {
     short i, j;
     short numRequest;
-    if (handle < maxDecoders || handle >= maxDecoders + maxRebuilders || NULL == pList)
+    if (NULL == handle || NULL == pList)
         return -1;
-    handle -= maxDecoders;
-    CM256LRC *pParam = &rebuilders[handle].param;
-    short iLost = rebuilders[handle].iLost;
-    switch (rebuilders[handle].stage) {
+
+    Rebuilder *pRebuilder = handle;
+    if (REBUILD_MAGIC != pRebuilder->magic)
+        return -2;
+
+    CM256LRC *pParam = &pRebuilder->param;
+    short iLost = pRebuilder->iLost;
+    switch (pRebuilder->stage) {
     case INIT_REBUILD:
         if ( iLost < pParam->OriginalCount ) {
             /* Original shard */
-            rebuilders[handle].stage = HOR_REBUILD;
+            pRebuilder->stage = HOR_REBUILD;
             numRequest = 0;
             short y = iLost / pParam->HorLocalCount;
             short n = y * pParam->HorLocalCount;
@@ -630,22 +632,22 @@ extern short LRC_NextRequestList(short handle, unsigned char *pList)
                 else if (n + j < pParam->OriginalCount)
                     pList[numRequest++] = n + j;                    
             }
-            rebuilders[handle].remainShards = numRequest;
+            pRebuilder->remainShards = numRequest;
         } else {
             short recoveryIndex = iLost - pParam->OriginalCount;
             if ( recoveryIndex >= pParam->FirstHorRecoveryIndex && recoveryIndex < pParam->FirstHorRecoveryIndex + pParam->VerLocalCount ) {
                 /* One of horizonal recovery shards */
-                rebuilders[handle].stage = HOR_RECOVERY_REBUILD;
+                pRebuilder->stage = HOR_RECOVERY_REBUILD;
                 numRequest = 0;
                 short y = recoveryIndex - pParam->FirstHorRecoveryIndex;
                 short n = y * pParam->HorLocalCount;
                 for (j = 0; j < pParam->HorLocalCount && n+j < pParam->OriginalCount; j++)
                     pList[numRequest++] = n + j;
-                rebuilders[handle].remainShards = numRequest;
+                pRebuilder->remainShards = numRequest;
             } else if ( recoveryIndex >= pParam->FirstVerRecoveryIndex && recoveryIndex < pParam->FirstVerRecoveryIndex + pParam->HorLocalCount ) {
                 /* One of vertical recovery shards */
-                rebuilders[handle].stage = VER_RECOVERY_REBUILD;
-                rebuilders[handle].remainShards = numRequest = pParam->VerLocalCount;
+                pRebuilder->stage = VER_RECOVERY_REBUILD;
+                pRebuilder->remainShards = numRequest = pParam->VerLocalCount;
                 short x = recoveryIndex - pParam->FirstVerRecoveryIndex;
                 numRequest = 0;
                 for (j = 0; j < pParam->VerLocalCount; j++) {
@@ -653,11 +655,11 @@ extern short LRC_NextRequestList(short handle, unsigned char *pList)
                     if (iRequest < pParam->OriginalCount)
                         pList[numRequest++] = iRequest;
                 }
-                rebuilders[handle].remainShards = numRequest;
+                pRebuilder->remainShards = numRequest;
             } else if ((recoveryIndex >= pParam->FirstGlobalRecoveryIndex && recoveryIndex < pParam->FirstGlobalRecoveryIndex + pParam->GlobalRecoveryCount) || recoveryIndex == pParam->LocalRecoveryOfGlobalRecoveryIndex) {
                 /* One of global recovery shard */
-                rebuilders[handle].stage = GLOBAL_RECOVERY_REBUILD;
-                rebuilders[handle].remainShards = numRequest = pParam->GlobalRecoveryCount;
+                pRebuilder->stage = GLOBAL_RECOVERY_REBUILD;
+                pRebuilder->remainShards = numRequest = pParam->GlobalRecoveryCount;
                 short n = pParam->OriginalCount + pParam->FirstGlobalRecoveryIndex;
                 for (j = 0; j < pParam->GlobalRecoveryCount; j++) {
                     if (n + j == iLost)
@@ -668,23 +670,23 @@ extern short LRC_NextRequestList(short handle, unsigned char *pList)
             } else
                 return -2;  // Impossible branch, because the value of index has been checked above
         }
-        memset(rebuilders[handle].pRepairedData, 0, rebuilders[handle].param.BlockBytes);
+        memset(pRebuilder->pRepairedData, 0, pRebuilder->param.BlockBytes);
         break;
 
     case HOR_REBUILD:
-        rebuilders[handle].stage = VER_REBUILD;
-        unsigned short x = rebuilders[handle].iLost % rebuilders[handle].param.HorLocalCount;
+        pRebuilder->stage = VER_REBUILD;
+        unsigned short x = pRebuilder->iLost % pRebuilder->param.HorLocalCount;
         unsigned short index = x;
         numRequest = 0;
-        for (i = 0; i < rebuilders[handle].param.VerLocalCount; i++) {
-            if (index == rebuilders[handle].iLost)
-                pList[numRequest++] = rebuilders[handle].param.OriginalCount + rebuilders[handle].param.FirstVerRecoveryIndex + x;
+        for (i = 0; i < pRebuilder->param.VerLocalCount; i++) {
+            if (index == pRebuilder->iLost)
+                pList[numRequest++] = pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x;
             else if (index < pParam->OriginalCount)
                 pList[numRequest++] = index;
-            index += rebuilders[handle].param.HorLocalCount;
+            index += pRebuilder->param.HorLocalCount;
         }
-        rebuilders[handle].remainShards = numRequest;
-        memset(rebuilders[handle].pRepairedData, 0, rebuilders[handle].param.BlockBytes);
+        pRebuilder->remainShards = numRequest;
+        memset(pRebuilder->pRepairedData, 0, pRebuilder->param.BlockBytes);
         break;
 
     case VER_REBUILD:
@@ -692,32 +694,32 @@ extern short LRC_NextRequestList(short handle, unsigned char *pList)
     case VER_RECOVERY_REBUILD:
     case GLOBAL_RECOVERY_REBUILD:
        /* Directly go to global recovery process if neither horizonal and vertical recovery works. Can be optimized later */
-        rebuilders[handle].stage = GLOBAL_REBUILD;
+        pRebuilder->stage = GLOBAL_REBUILD;
         numRequest = 0;
         unsigned short nLost = 0;
-        for (i = 0; i < rebuilders[handle].param.OriginalCount; i++) {                                                  
-            if (LOST == rebuilders[handle].shardStatus[i])
+        for (i = 0; i < pRebuilder->param.OriginalCount; i++) {                                                  
+            if (LOST == pRebuilder->shardStatus[i])
                 nLost++;
-            else if (EXISTED != rebuilders[handle].shardStatus[i])
+            else if (EXISTED != pRebuilder->shardStatus[i])
                 pList[numRequest++] = i;
         }
-        if (nLost > rebuilders[handle].param.TotalRecoveryCount)
+        if (nLost > pRebuilder->param.TotalRecoveryCount)
             return 0;   // Unable to repair
         /* Request all recovery shards, not only global ones */
-        for (i = 0; i < rebuilders[handle].param.TotalRecoveryCount; i++) {
-            j = rebuilders[handle].param.OriginalCount + i;
-            if (LOST != rebuilders[handle].shardStatus[j] && EXISTED != rebuilders[handle].shardStatus[j])
+        for (i = 0; i < pRebuilder->param.TotalRecoveryCount; i++) {
+            j = pRebuilder->param.OriginalCount + i;
+            if (LOST != pRebuilder->shardStatus[j] && EXISTED != pRebuilder->shardStatus[j])
                 pList[numRequest++] = j;
         }
 
-        rebuilders[handle].pDecodedData = malloc((rebuilders[handle].param.TotalOriginalCount+1) * rebuilders[handle].param.BlockBytes); // Last block is reserved for figuring local recovery shard for global recovery shards
-        if (NULL == rebuilders[handle].pDecodedData)
+        pRebuilder->pDecodedData = malloc((pRebuilder->param.TotalOriginalCount+1) * pRebuilder->param.BlockBytes); // Last block is reserved for figuring local recovery shard for global recovery shards
+        if (NULL == pRebuilder->pDecodedData)
             return -4;
-        rebuilders[handle].decoderHandle = LRC_BeginDecode(rebuilders[handle].param.OriginalCount, rebuilders[handle].param.BlockBytes+1, rebuilders[handle].pDecodedData);
-        if (rebuilders[handle].decoderHandle < 0)
+        pRebuilder->pDecoder = LRC_BeginDecode(pRebuilder->param.OriginalCount, pRebuilder->param.BlockBytes+1, pRebuilder->pDecodedData);
+        if (NULL == pRebuilder->pDecoder)
             return -5;
-        for (i = 0; i < rebuilders[handle].numShards; i++)
-            LRC_Decode(rebuilders[handle].decoderHandle, rebuilders[handle].shards[i]);
+        for (i = 0; i < pRebuilder->numShards; i++)
+            LRC_Decode(pRebuilder->pDecoder, pRebuilder->shards[i]);
         break;
 
     case GLOBAL_REBUILD:
@@ -728,7 +730,7 @@ extern short LRC_NextRequestList(short handle, unsigned char *pList)
 
     }
     for (j = 0; j < numRequest; j++)
-        rebuilders[handle].shardStatus[(int)pList[j]] = REQUEST;
+        pRebuilder->shardStatus[pList[j]] = REQUEST;
     return numRequest;
 }
 
@@ -738,14 +740,16 @@ extern short LRC_NextRequestList(short handle, unsigned char *pList)
  * pShard: shard data
  * return: >0 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required, <0 if something wrong
  */
-extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
+extern short LRC_OneShardForRebuild(void *handle, const void *pShardData)
 {
     short i = 0;
     uint8_t matrixElement;
-    if (handle < maxDecoders || handle >= maxDecoders + maxRebuilders || NULL == pShardData)
+    if (NULL == handle || NULL == pShardData)
         return -1;
-    handle -= maxDecoders;
-    Rebuilder *pRebuilder = &rebuilders[handle];
+    Rebuilder *pRebuilder = handle;
+    if (REBUILD_MAGIC != pRebuilder->magic)
+        return -1;
+
     CM256LRC *pParam = &pRebuilder->param;
     int blockBytes = pParam->BlockBytes;
     const uint8_t *pShard = pShardData;
@@ -810,7 +814,7 @@ extern short LRC_OneShardForRebuild(short handle, const void *pShardData)
         break;
         
     case GLOBAL_REBUILD:
-        if ( LRC_Decode(pRebuilder->decoderHandle, pShardData) <= 0 )
+        if ( LRC_Decode(pRebuilder->pDecoder, pShardData) <= 0 )
             break;
         /* Recovered original data */
         if (pRebuilder->iLost < pParam->OriginalCount) {
