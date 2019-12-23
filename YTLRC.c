@@ -752,7 +752,7 @@ extern short LRC_OneShardForRebuild(void *handle, const void *pShardData)
     case VER_REBUILD:
         if (--pRebuilder->remainShards <= 0) {
             /* Enough to recover */
-            assert(pRebuilder->numShards >= pParam->VerLocalCount);
+            assert(pRebuilder->numShards >= pParam->VerLocalCount-1);
             CM256Block blocks[MAXSHARDS];
             unsigned short x = pRebuilder->iLost % pParam->HorLocalCount;
             unsigned short verRecoveryIndex = VER_RECOVERY_INDEX(pParam, x);
