@@ -774,7 +774,10 @@ extern short LRC_OneShardForRebuild(void *handle, const void *pShardData)
             params.BlockBytes = pParam->BlockBytes;
             params.TotalOriginalCount = pParam->TotalOriginalCount;
             params.FirstElement = x;
-            params.OriginalCount = x < (pParam->OriginalCount % pParam->HorLocalCount) ? pParam->VerLocalCount : pParam->VerLocalCount - 1;
+            if (0 == (pParam->OriginalCount % pParam->HorLocalCount) || x < (pParam->OriginalCount % pParam->HorLocalCount))
+                params.OriginalCount = pParam->VerLocalCount;
+            else
+               params.OriginalCount =  pParam->VerLocalCount - 1;
             params.RecoveryCount = 1;
             params.Step = pParam->HorLocalCount;
 
