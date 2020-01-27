@@ -297,7 +297,33 @@ static bool CheckAndRecoverGlobal(DecoderLRC *pDecoder)
     if ( pDecoder->numGlobalRecovery == pParam->GlobalRecoveryCount-1 && SHARD_EXISTED(pDecoder, cm256_get_recovery_block_index(pParam, pParam->LocalRecoveryOfGlobalRecoveryIndex)) ) {
         /* Only miss one global recovery shard, recovery it from local recovery shard of global recovery shards */
         uint8_t *pBuf = GlobalRecoveryBuf(pDecoder);
-        memcpy(pBuf, pDecoder->bloc？'
+        memcpy(pBuf, pDecoder->blocks[cm256_get_recovery_block_index(pParam, pParam->LocalRecoveryOfGlobalRecoveryIndex)].pData, pParam->BlockBytes);
+        for (i = 0; i < pParam->GlobalRecoveryCount; i++) {
+            short index = GLOBAL_RECOVERY_INDEX(pParam, i);
+            if ( !SHARD_EXISTED(pDecoder, index) ) {
+                /* Found the missing shard, repair it */
+                pDecoder->blocks[index].pData = pBuf;
+                pDecoder->blocks[index].lrcIndex = index;
+                pDecoder->blocks[index].decodeIndex = GLOBAL_DECODE_INDEX(pParam, i);
+            } else {
+                assert(pDecoder->blocks[index].pData != pBuf);
+                gf256_add_mem(pBuf, pDecoder->blocks[index].pData, pParam->BlockBytes);
+            }
+        }
+        pDecoder->numGlobalRecovery++;
+        pDecoder->totalGlobalRecovery++;
+        ret = true;
+    }
+
+    CM256Block *pBlock = &pDecoder->blocks[GLOBAL_FROM_HOR_INDEX(pParam)];
+    if ( pDecoder->numHorRecovery == pParam->VerLocalCount && NULL == pBlock->pData ) {
+        /* There is an additional global recovery shard from horizonal recovery shards */
+        uint8_t *pBuf = GlobalFromHorBuf(pDecoder);
+        memcpy(pBuf, pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, 0)].pData, pParam->BlockBytes);
+        for (i = 1; i < pParam->VerLocalCount; i++) {
+            gf256_add_mem(pBuf, pDecoder->blocks[HOR_RECOVERY_INDEX(pParam, i)].pData, pParam->BlockBytes);
+        }
+        pBlock->pData = pBuf;
         pBlock->lrcIndex = GLOBAL_FROM_HOR_INDEX(pParam);
         pBlock->decodeIndex = HOR_DECODE_INDEX(pParam);
 
