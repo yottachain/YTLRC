@@ -676,7 +676,7 @@ bool RebuildTest(int minOriginalCount, int maxOriginalCount, int probability, in
             if (NULL == handle)
                 continue;
             iLoop++;
-            printf("\nTest %d: Lost shard %d, rebuild handle = %p\n", iLoop, iLost, handle);
+            printf("\n%d data shards test %d: Lost shard %d, rebuild handle = %p\n", originalCount, iLoop, iLost, handle);
 
             /* Prepare test data */
             for (i = 0; i < originalCount; i++) {
