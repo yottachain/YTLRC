@@ -9,7 +9,7 @@
 	* Redistributions in binary form must reproduce the above copyright notice,
 	  this list of conditions and the following disclaimer in the documentation
 	  and/or other materials provided with the distribution.
-	* Neither the name of CM256 nor the names of its contributors may be
+	* Neither the name of CM256/YTLRC nor the names of its contributors may be
 	  used to endorse or promote products derived from this software without
 	  specific prior written permission.
 
@@ -75,7 +75,7 @@
 
 //-----------------------------------------------------------------------------
 // Initialization
-int cm256_init_(int version)
+extern int cm256_init_(int version)
 {
     if (version != CM256_VERSION)
     {
@@ -121,23 +121,11 @@ int cm256_init_(int version)
     a_ij = (y_j + x_0) div (x_i + y_j) in GF(256)
 */
 
-// This function generates each matrix element based on x_i, x_0, y_j
-// Note that for x_i == x_0, this will return 1, so it is better to unroll out the first row.
-static GF256_FORCE_INLINE unsigned char GetMatrixElement(unsigned char iMatrix, unsigned char matrixLen, unsigned char iElement)
-{
-    assert(iMatrix >= matrixLen);
-#ifdef TANGCODE
-    if ( matrixLen == 128 && iMatrix < matrixLen + GF256Ctx.Max128RecoveryMatrixes )
-        return GF256Ctx.GF256_128[iMatrix-matrixLen][iElement];
-#endif
-    return gf256_div(gf256_add(iElement, matrixLen), gf256_add(iMatrix, iElement));
-}
-
 
 //-----------------------------------------------------------------------------
 // Encoding
 
-void CM256EncodeBlock(
+extern void CM256EncodeBlock(
     cm256_encoder_params params, // Encoder parameters
     CM256Block* originals,      // Array of pointers to original blocks
     int recoveryBlockIndex,      // Return value from cm256_get_recovery_block_index()
@@ -202,12 +190,12 @@ void CM256EncodeBlock(
     }
 }
 
-int cm256_encode(
+extern int cm256_encode(
     CM256LRC paramLRC, // LRC Encoder params
     CM256Block* originals,      // Array of pointers to original blocks
     uint8_t* recoveryData)        // Output recovery blocks end-to-end
 {
-    short i, j;
+    short i;
     // Validate input:
     if (paramLRC.OriginalCount <= 0 ||
         paramLRC.TotalRecoveryCount <= 3 ||
@@ -294,7 +282,7 @@ int cm256_encode(
 //-----------------------------------------------------------------------------
 // Decoding
 
-bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks)
+extern bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks)
 {
     int ii;
     pDecoder->Params = *pParams;
@@ -342,7 +330,7 @@ bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pPara
     return true;
 }
 
-void DecodeM1(CM256Decoder *pDecoder)
+extern void DecodeM1(CM256Decoder *pDecoder)
 {
     int ii;
     // XOR all other blocks into the recovery block
@@ -378,7 +366,7 @@ void DecodeM1(CM256Decoder *pDecoder)
 }
 
 // Generate the LU decomposition of the matrix
-void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
+extern void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
 {
     // Schur-type-direct-Cauchy algorithm 2.5 from
     // "Pivoting and Backward Stability of Fast Algorithms for Solving Cauchy Linear Equations"
@@ -487,7 +475,7 @@ void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t
     diag_D[N - 1] = gf256_div(gf256_mul(L_nn, U_nn), gf256_add(x_n, y_n));
 }
 
-void Decode(CM256Decoder *pDecoder)
+extern void Decode(CM256Decoder *pDecoder)
 {
     int originalIndex, recoveryIndex, i, j;
     // Matrix size is NxN, where N is the number of recovery blocks used.
@@ -584,7 +572,7 @@ void Decode(CM256Decoder *pDecoder)
         free(dynamicMatrix);
 }
 
-int cm256_decode(
+extern int cm256_decode(
     cm256_encoder_params params, // Encoder params
     CM256Block* blocks)         // Array of 'originalCount' blocks as described above
 {

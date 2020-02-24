@@ -1,5 +1,5 @@
 /*
-    YottaChain Repairable Code API
+    YottaChain Locally Repairable Code API
 	Copyright (c) 2019 YottaChain Foundation Ltd.  All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
@@ -10,10 +10,7 @@
 	* Redistributions in binary form must reproduce the above copyright notice,
 	  this list of conditions and the following disclaimer in the documentation
 	  and/or other materials provided with the distribution.
-	* Neither the name of CM256 nor the names of its contributors may be
-	  used to endorse or promote products derived from this software without
-	  specific prior written permission.
-
+	
 	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,7 +33,7 @@
  * maxHandles: maximum of decoding processes or rebuilding processes working at same time
  * return: 0 if fails
  */
-short LRC_Initial(short globalRecoveryCount, short maxHandles);
+short LRC_Initial(short globalRecoveryCount);
 
 #define MAXRECOVERYSHARDS   36
 /*
@@ -55,9 +52,9 @@ short LRC_Encode(const void *originalShards[], unsigned short originalCount, uns
  * originalCount: number of shards of original data
  * shardSize: size of each shard in byte including index byte
  * pData: require at least originalCount * (shardSize-1) space, return original data if success
- * return: handle of this decode process, <0 fails (such as exceed maxHandles)
+ * return: handle of this decode process, NULL fails (such as exceed maxHandles)
  */
-short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData);
+void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData);
 
 /*
  * Decode one shard for specific decode process
@@ -65,7 +62,7 @@ short LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, voi
  * pShard: data of this shard
  * return: 0 if collected shards are not enough for decoding,  >0 success, <0 error
  */
-short LRC_Decode(short handle, const void *pShard);
+short LRC_Decode(void *handle, const void *pShard);
 
 /*
  * Begin a rebuild process, call LRC_NextRequestList immediately to get requested shard list
@@ -73,9 +70,9 @@ short LRC_Decode(short handle, const void *pShard);
  * iLost: order of lost shard
  * shardSize: size of each shard
  * pData: the buffer for rebuilt shard, at least shardSize length
- * return: handle of rebuild process, <0 fails
+ * return: handle of rebuild process, NULL fails
  */
-short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData);
+void *LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsigned long shardSize, void *pData);
 
 /*
  * Get next shard list for rebuild the lost shard. 
@@ -84,7 +81,7 @@ short LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost, unsig
  * pList: output, at least 256 bytes space, return new list of required shards
  * return: number of shards in new list. 0 if no way to rebuild, <0 if something wrong
  */
-short LRC_NextRequestList(short handle, char *pList);
+short LRC_NextRequestList(void *handle, unsigned char *pList);
 
 /*
  * Provide one shard for rebuilding lost shards
@@ -92,11 +89,14 @@ short LRC_NextRequestList(short handle, char *pList);
  * pShard: shard data
  * return: >0 if rebuilding is done, repaired data in the buffer provided at beginning of rebuilding process, automatically free handle, 0 if more shards required, <0 if something wrong
  */
-short LRC_OneShardForRebuild(short handle, const void *pShard);
+ short LRC_OneShardForRebuild(void *handle, const void *pShard);
 
 /*
- * Abandon a decode or rebuild process
+ * End of a decode or rebuild process and free the resource of this process
+ * handle: handle of decode or rebuild process, system will identify the type automatically
+ * return: true if sucess
  */
-void LRC_FreeHandle(short handle);
+short LRC_FreeHandle(void *handle);
+
 
 #endif  // YTLRC_H

@@ -9,7 +9,7 @@
 	* Redistributions in binary form must reproduce the above copyright notice,
 	  this list of conditions and the following disclaimer in the documentation
 	  and/or other materials provided with the distribution.
-	* Neither the name of CM256 nor the names of its contributors may be
+	* Neither the name of CM256/YTLRC nor the names of its contributors may be
 	  used to endorse or promote products derived from this software without
 	  specific prior written permission.
 
@@ -51,7 +51,7 @@ extern "C" {
  *
  * Returns 0 on success, and any other code indicates failure.
  */
-extern int cm256_init_(int version);
+ int cm256_init_(int version);
 #define cm256_init() cm256_init_(CM256_VERSION)
 
 
@@ -150,19 +150,20 @@ static inline unsigned char cm256_get_original_block_index(int OriginalCount, in
  *
  * Returns 0 on success, and any other code indicates failure.
  */
-extern int cm256_encode(
+int cm256_encode(
     CM256LRC paramLRC, // Encoder parameters
     CM256Block* originals,      // Array of pointers to original blocks
     uint8_t* recoveryData);       // Output recovery blocks end-to-end
 
 // Encode one block.
 // Note: This function does not validate input, use with care.
-extern void cm256_encode_block(
+/*
+void cm256_encode_block(
     cm256_encoder_params params, // Encoder parameters
     CM256Block* originals,      // Array of pointers to original blocks
     int recoveryBlockIndex,      // Return value from cm256_get_recovery_block_index()
     uint8_t* recoveryData);        // Output recovery block
-
+*/
 /*
  * Cauchy MDS GF(256) decode
  *
@@ -181,7 +182,7 @@ extern void cm256_encode_block(
  *
  * Returns 0 on success, and any other code indicates failure.
  */
-extern int cm256_decode(
+int cm256_decode(
     cm256_encoder_params params, // Encoder parameters
     CM256Block* blocks);        // Array of 'originalCount' blocks as described above
 
@@ -207,7 +208,7 @@ typedef struct {
 } CM256Decoder;
 
 // Initialize the decoder
-bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks);
+ bool DecoderInitialize(CM256Decoder *pDecoder, const cm256_encoder_params *pParams, CM256Block* blocks);
 
 // Decode m=1 case
 void DecodeM1(CM256Decoder *pDecoder);
@@ -218,7 +219,8 @@ void Decode(CM256Decoder *pDecoder);
 // Generate the LU decomposition of the matrix
 void GenerateLDUDecomposition(CM256Decoder *pDecoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U);
 
-short GetHorLocalCount(short originalCount);
-void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
+//short GetHorLocalCount(short originalCount);
+//void InitialParam(CM256LRC *pParam, unsigned short originalCount, unsigned shardSize, bool bIndexByte);
 
+void CM256EncodeBlock(cm256_encoder_params params,CM256Block* originals,int recoveryBlockIndex, uint8_t* recoveryBlockData);
 #endif // CM256_H
