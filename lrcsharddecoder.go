@@ -7,7 +7,7 @@ package lrcpkg
  #cgo CFLAGS: -std=c99
 // #cgo LDFLAGS:-L ./ -lYTLRC -lcm256 -lgf256
  #cgo amd64 CFLAGS: -mssse3
- #cgo arm arm64 CFLAGS: -DLINUX_ARM=1
+ #cgo arm arm64 CFLAGS: -DLINUX_ARM=1 -DGF256_TARGET_MOBILE
  #cgo LDFLAGS: -lm
  #include <stdlib.h>
  #include "./YTLRC.h"
