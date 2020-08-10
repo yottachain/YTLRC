@@ -1,7 +1,7 @@
 package lrcpkg
 /*
  #cgo CFLAGS: -I./
- #cgo CFLAGS: -g -Wall -O3
+ #cgo CFLAGS: -g -Wall -O0
  #cgo CFLAGS: -Wunused-variable
 // #cgo CFLAGS: -Wrestrict
  #cgo CFLAGS: -std=c99
