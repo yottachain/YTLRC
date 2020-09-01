@@ -10,7 +10,10 @@ type Shardsinfo struct {
 	OriginalCount uint16 //原始数据最大碎片数
         Lostindex uint16  //希望恢复块的序号
 	ShardSize uint32 //碎片大小,当前默认是16k 
-        PtrData *C.char //重建后数据的保存buf
+	PtrData       unsafe.Pointer        //重建后数据的保存buf
+	PRecoveryData unsafe.Pointer
+	//PtrData       *C.char        //重建后数据的保存buf
+	//PRecoveryData *C.char
 }
 
 type LRCEngine interface {
@@ -20,4 +23,7 @@ type LRCEngine interface {
         AddShardData(handle unsafe.Pointer,sdata []byte)(int16) //每获得一个碎片就可以加入，大于0表示已经重建完毕，等于0表示还需要碎片，小于0表示有错误
 	GetRebuildData(sdinf *Shardsinfo)([]byte,int16) //获取恢复后的碎片及状态，大于0表示数据获取成功，等于0表示还需要碎片，小于0表示错误
         FreeHandle(sdinf *Shardsinfo) //恢复中期，放弃恢复任务或者任务结束时，需要调用本函数
+	LRCEncode(sdinf *Shardsinfo, OriginalShards [][]byte) int16   //LRC编码接口，返回冗余数据分片
+	LRCBeginDecode(OriginalShards [][]byte) unsafe.Pointer        //创建解码任务，返回句柄
+	LRCDecode(handle unsafe.Pointer, ptr byte) int16              //LRC解码，大于0成功，小于0失败，等于0需要继续解码
 }
