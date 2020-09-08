@@ -136,7 +136,7 @@ func (s *Shardsinfo) LRCinit(n int16) int16 {
 }
 
 func WriteAddrToFile(addr uint64, entry, fileName string) error{
-	filePath := "/root" + fileName
+	filePath := "/root/" + fileName
 	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
