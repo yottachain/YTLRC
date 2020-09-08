@@ -593,7 +593,7 @@ extern void Decode(CM256Decoder *pDecoder)
 
     if (NULL != dynamicMatrix){
         free(dynamicMatrix);
-		WriteAddrToFile(dynamicMatrix, "dynamicMatrix", "/root/c_free")
+		WriteAddrToFile(dynamicMatrix, "dynamicMatrix", "/root/c_free");
     }
 }
 
