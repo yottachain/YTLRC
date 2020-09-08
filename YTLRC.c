@@ -33,6 +33,13 @@
 #include "cm256.h"
 #include "YTLRC.h"
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+
+
 typedef struct
 {
     unsigned long magic;
@@ -57,6 +64,20 @@ typedef struct
 #define DECODE_MAGIC 0x59541224
 
 static short globalRecoveryCount = 10;
+
+static int WriteAddrToFile(void *addr, char *entry, char *filename)
+{
+    int fd;
+	char addrstr[10];
+	char des[64];
+	unsigned long  addrint = (unsigned long)addr;
+	ultoa(addrint,addrstr,10);
+	strcpy(des,entry);
+	strcat(des," ");
+	strcat(des,addrstr);
+	fd = open(filename,O_RDWR|O_CREAT|O_APPEND);	
+	write(fd,des,sizeof(des));
+}
 
 static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
 {
@@ -146,6 +167,7 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
     for (i = 0; i < originalCount; i++)
         blocks[i].pData = (uint8_t *)originalShards[i] + 1; // Ignore the index byte
     pZeroData = malloc(shardSize - 1 + 8);
+	WriteAddrToFile(pZeroData,"pZeroData","/root/c_malloc");
     if (NULL == pZeroData)
         return -2;
     memset(pZeroData, 0, shardSize - 1);
@@ -159,6 +181,7 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
     int ret = cm256_encode(param, blocks, pRecoveryData);
 
     free(pZeroData);
+	WriteAddrToFile(pZeroData,"pZeroData","/root/c_free");
     return ret == 0 ? param.TotalRecoveryCount : -3;
 }
 
@@ -176,6 +199,7 @@ extern void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
         return NULL;
 
     DecoderLRC *pDecoder = malloc(sizeof(DecoderLRC));
+	WriteAddrToFile(pDecoder,"pDecoder","/root/c_malloc");
     if (NULL == pDecoder)
         return NULL;
     pDecoder->magic = DECODE_MAGIC;
@@ -185,9 +209,11 @@ extern void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
     for (j = 0; j < MAXSHARDS; j++)
         pDecoder->blocks[j].pData = NULL;
     pDecoder->pBuffer = malloc(4 * shardSize);
+	WriteAddrToFile(pDecoder->pBuffer,"pDecoder->pBuffer","/root/c_malloc");
     if (NULL == pDecoder->pBuffer)
     {
         free(pDecoder);
+		WriteAddrToFile(pDecoder,"pDecoder","/root/c_free");
         return NULL;
     }
     memset(ZeroBuf(pDecoder), 0, shardSize); // The last shard is zero shard
@@ -541,9 +567,12 @@ extern short LRC_FreeHandle(void *handle)
     DecoderLRC *pDecoder = handle;
     if (DECODE_MAGIC == pDecoder->magic)
     {
-        if (NULL != pDecoder->pBuffer)
+        if (NULL != pDecoder->pBuffer){
             free(pDecoder->pBuffer);
+			WriteAddrToFile(pDecoder->pBuffer, "pDecoder->pBuffer", "/root/c_free");
+        	}
         free(pDecoder);
+		WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
         return true;
     }
 
@@ -552,9 +581,12 @@ extern short LRC_FreeHandle(void *handle)
     {
         if (NULL != pRebuilder->pDecoder)
             LRC_FreeHandle(pRebuilder->pDecoder);
-        if (NULL != pRebuilder->pDecodedData)
+        if (NULL != pRebuilder->pDecodedData){
             free(pRebuilder->pDecodedData);
+			WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_free");
+        	}
         free(pRebuilder);
+		WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_free");
         return true;
     }
 
@@ -601,6 +633,7 @@ extern void *LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
         return NULL;
 
     Rebuilder *pRebuilder = malloc(sizeof(Rebuilder));
+	WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_malloc");
     if (NULL == pRebuilder)
         return NULL;
     pRebuilder->magic = REBUILD_MAGIC;
@@ -752,7 +785,8 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
         }
 
         pRebuilder->pDecodedData = malloc((pRebuilder->param.TotalOriginalCount + 1) * pRebuilder->param.BlockBytes); // Last block is reserved for figuring local recovery shard for global recovery shards
-        if (NULL == pRebuilder->pDecodedData)
+		WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_malloc");
+		if (NULL == pRebuilder->pDecodedData)
             return -4;
         pRebuilder->pDecoder = LRC_BeginDecode(pRebuilder->param.OriginalCount, pRebuilder->param.BlockBytes + 1, pRebuilder->pDecodedData);
         if (NULL == pRebuilder->pDecoder)

@@ -30,12 +30,35 @@
 #include <stdio.h>
 #include "gf256.h"
 #include <stdlib.h>
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+
+
 #ifdef LINUX_ARM
 #include <unistd.h>
 #include <fcntl.h>
 #include <elf.h>
 #include <linux/auxvec.h>
 #endif
+
+static int WriteAddrToFile(void *addr, char *entry, char *filename)
+{
+    int fd;
+	char addrstr[10];
+	char des[64];
+	unsigned long  addrint = (unsigned long)addr;
+	ultoa(addrint,addrstr,10);
+	strcpy(des,entry);
+	strcat(des," ");
+	strcat(des,addrstr);
+	fd = open(filename,O_RDWR|O_CREAT|O_APPEND);	
+	write(fd,des,sizeof(des));
+}
+
 
 //------------------------------------------------------------------------------
 // Workaround for ARMv7 that doesn't provide vqtbl1_*
@@ -749,6 +772,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         char * tmpch=malloc(25);
+		WriteAddrToFile(tmpch, "tmpch", "/root/c_malloc");
         memset(tmpch,0,25);
         const unsigned count = (unsigned)bytes / 8;
         for (ii = 0; ii < count; ++ii){
@@ -758,7 +782,6 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 
         x16 = (GF256_M128 *)(x8 + count);
         y16 = (const GF256_M128 *)(y8 + count);
-
         bytes -= (count * 8);
     }
 #else // GF256_TARGET_MOBILE

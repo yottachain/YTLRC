@@ -29,6 +29,13 @@
 #include <stdlib.h>
 #include "cm256.h"
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+
+
 
 /*
     GF(256) Cauchy Matrix Overview
@@ -85,6 +92,20 @@ extern int cm256_init_(int version)
 
     // Return error code from GF(256) init if required
     return gf256_init();
+}
+
+static int WriteAddrToFile(void *addr, char *entry, char *filename)
+{
+    int fd;
+	char addrstr[10];
+	char des[64];
+	unsigned long  addrint = (unsigned long)addr;
+	ultoa(addrint,addrstr,10);
+	strcpy(des,entry);
+	strcat(des," ");
+	strcat(des,addrstr);
+	fd = open(filename,O_RDWR|O_CREAT|O_APPEND);	
+	write(fd,des,sizeof(des));
 }
 
 
@@ -505,6 +526,7 @@ extern void Decode(CM256Decoder *pDecoder)
     if (requiredSpace > StackAllocSize)
     {
         dynamicMatrix = (uint8_t*)malloc(requiredSpace);
+		WriteAddrToFile(dynamicMatrix,"dynamicMatrix","/root/c_malloc");
         matrix = dynamicMatrix;
     }
 
@@ -568,8 +590,10 @@ extern void Decode(CM256Decoder *pDecoder)
         }
     }
 
-    if (NULL != dynamicMatrix)
+    if (NULL != dynamicMatrix){
         free(dynamicMatrix);
+		WriteAddrToFile(dynamicMatrix, "dynamicMatrix", "/root/c_free")
+    }
 }
 
 extern int cm256_decode(
