@@ -100,13 +100,15 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 	char addrstr[10];
 	char des[64];
 	unsigned long  addrint = (unsigned long)addr;
-	ultoa(addrint,addrstr,10);
+	//ultoa(addrint,addrstr,10);
+	sprintf(addrstr,"%lu",addrint);
 	strcpy(des,entry);
 	strcat(des," ");
 	strcat(des,addrstr);
 	fd = open(filename,O_RDWR|O_CREAT|O_APPEND);	
 	write(fd,des,sizeof(des));
 	close(fd);
+	return 0;
 }
 
 
