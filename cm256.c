@@ -100,8 +100,8 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
     int fd;
 	char addrstr[10];
 	char des[512];
-	//char filelog[] = "/root/c_malloclogcm256";
-	//filename = filelog;
+	char filelog[] = "/root/c_malloclogcm256";
+	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
 	//ultoa(addrint,addrstr,10);
 	sprintf(addrstr,"%lu",addrint);
