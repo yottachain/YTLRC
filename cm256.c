@@ -534,7 +534,7 @@ extern void Decode(CM256Decoder *pDecoder)
     if (requiredSpace > StackAllocSize)
     {
         dynamicMatrix = (uint8_t*)malloc(requiredSpace);
-		//WriteAddrToFile(dynamicMatrix,"dynamicMatrix","/root/c_malloc");
+		WriteAddrToFile(dynamicMatrix,"dynamicMatrix","/root/c_malloc");
         matrix = dynamicMatrix;
     }
 
@@ -599,7 +599,7 @@ extern void Decode(CM256Decoder *pDecoder)
     }
 
     if (NULL != dynamicMatrix){
-		//WriteAddrToFile(dynamicMatrix, "free_dynamicMatrix", "/root/c_cmfree");
+		WriteAddrToFile(dynamicMatrix, "free_dynamicMatrix", "/root/c_cmfree");
         free(dynamicMatrix);
     }
 }

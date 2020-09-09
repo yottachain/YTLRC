@@ -781,7 +781,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         char * tmpch=malloc(25);
-		//WriteAddrToFile(tmpch, "tmpch", "/root/c_gfmalloc");
+		WriteAddrToFile(tmpch, "tmpch", "/root/c_gfmalloc");
         memset(tmpch,0,25);
         const unsigned count = (unsigned)bytes / 8;
         for (ii = 0; ii < count; ++ii){
