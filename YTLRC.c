@@ -87,7 +87,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 	fd = open(filename,O_RDWR|O_CREAT|O_APPEND);	
 	write(fd,des,strlen(des));
 	close(fd);
-	sleep(2);
+	//sleep(2);
 	return 0;
 }
 
