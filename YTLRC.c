@@ -71,10 +71,10 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
     int fd;
 	char addrstr[10];
-	char des[1024];
-	char filelog[] = "/root/c_mallocytlrc0";
+	char des[256];
+	//char filelog[] = "/root/c_mallocytlrc0";
 
-	filename = filelog;
+	//filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
 	//ultoa(addrint,addrstr,10);
 	//char str[20];
@@ -192,7 +192,8 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
 
     int ret = cm256_encode(param, blocks, pRecoveryData);
 
-	WriteAddrToFile(pZeroData,"free_pZeroData","/root/c_malloc");
+	WriteAddrToFile(pZeroData,"free_pZeroData","/root/c_free");
+	printf("free_pZeroData=%p \n";pZeroData);
     free(pZeroData);
 	
     return ret == 0 ? param.TotalRecoveryCount : -3;
@@ -585,6 +586,7 @@ extern short LRC_FreeHandle(void *handle)
             free(pDecoder->pBuffer);	
         	}
 		WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
+		printf("pDecoder=%p\n",pDecoder);
         free(pDecoder);		
         return true;
     }

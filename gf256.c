@@ -52,8 +52,8 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
     int fd;
 	char addrstr[10];
 	char des[512];
-	char filelog[] = "/root/c_mallocgf256";
-	filename = filelog;
+	//char filelog[] = "/root/c_mallocgf256";
+	//filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
 	//ultoa(addrint,addrstr,10);
 	sprintf(addrstr,"%lu",addrint);
@@ -781,7 +781,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         char * tmpch=malloc(25);
-		WriteAddrToFile(tmpch, "tmpch", "/root/c_malloc");
+		WriteAddrToFile(tmpch, "tmpch", "/root/c_gfmalloc");
         memset(tmpch,0,25);
         const unsigned count = (unsigned)bytes / 8;
         for (ii = 0; ii < count; ++ii){
