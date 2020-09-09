@@ -52,7 +52,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
     int fd;
 	char addrstr[10];
 	char des[64];
-	char filelog[] = "/root/c_malloclog";
+	char filelog[] = "/root/c_mallocgf256";
 	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
 	//ultoa(addrint,addrstr,10);
