@@ -69,6 +69,7 @@ static short globalRecoveryCount = 10;
 
 static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
+	return;
     int fd;
 	char addrstr[10];
 	char des[256];
