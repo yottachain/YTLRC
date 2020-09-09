@@ -65,11 +65,16 @@ typedef struct
 
 static short globalRecoveryCount = 10;
 
+
+
 static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
     int fd;
 	char addrstr[10];
 	char des[64];
+	char filelog[] = "/root/c_malloclog";
+
+	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
 	//ultoa(addrint,addrstr,10);
 	//char str[20];
@@ -185,8 +190,9 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
 
     int ret = cm256_encode(param, blocks, pRecoveryData);
 
+	WriteAddrToFile(pZeroData,"pZeroData","/root/c_malloc");
     free(pZeroData);
-	WriteAddrToFile(pZeroData,"pZeroData","/root/c_free");
+	
     return ret == 0 ? param.TotalRecoveryCount : -3;
 }
 
@@ -217,8 +223,8 @@ extern void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
 	WriteAddrToFile(pDecoder->pBuffer,"pDecoder->pBuffer","/root/c_malloc");
     if (NULL == pDecoder->pBuffer)
     {
+    	WriteAddrToFile(pDecoder,"pDecoder","/root/c_free");
         free(pDecoder);
-		WriteAddrToFile(pDecoder,"pDecoder","/root/c_free");
         return NULL;
     }
     memset(ZeroBuf(pDecoder), 0, shardSize); // The last shard is zero shard
@@ -573,11 +579,11 @@ extern short LRC_FreeHandle(void *handle)
     if (DECODE_MAGIC == pDecoder->magic)
     {
         if (NULL != pDecoder->pBuffer){
-            free(pDecoder->pBuffer);
 			WriteAddrToFile(pDecoder->pBuffer, "pDecoder->pBuffer", "/root/c_free");
+            free(pDecoder->pBuffer);	
         	}
-        free(pDecoder);
 		WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
+        free(pDecoder);		
         return true;
     }
 
@@ -587,14 +593,13 @@ extern short LRC_FreeHandle(void *handle)
         if (NULL != pRebuilder->pDecoder)
             LRC_FreeHandle(pRebuilder->pDecoder);
         if (NULL != pRebuilder->pDecodedData){
+			WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_free");        	
             free(pRebuilder->pDecodedData);
-			WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_free");
-        	}
-        free(pRebuilder);
+			}
 		WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_free");
+        free(pRebuilder);		
         return true;
     }
-
     return false;
 }
 

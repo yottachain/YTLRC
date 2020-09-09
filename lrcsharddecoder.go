@@ -136,8 +136,9 @@ func (s *Shardsinfo) LRCinit(n int16) int16 {
 }
 
 func WriteAddrToFile(addr uint64, entry, fileName string) error{
-	filePath := "/root/" + fileName
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	//filePath := "/root/" + fileName
+	filePath2 := "/root/cgo_malloc2"
+	f, err := os.OpenFile(filePath2, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
@@ -166,18 +167,17 @@ func (s *Shardsinfo)GetRCHandle(sdinf *Shardsinfo) (unsafe.Pointer){
      }
 */
      IndexData = 0
-	 sdinf.PtrData = C.malloc(C.size_t(16384))
-
+	 s.PtrData = C.malloc(C.size_t(16384))
 	 WriteAddrToFile(uint64(uintptr(sdinf.PtrData)),"PtrData","cgo_malloc")
-	 sdinf.ShardSize = BufferSize
-     if sdinf.PtrData == nil {
+	 s.ShardSize = BufferSize
+     if s.PtrData == nil {
         panic("ptrData malloc failed!\n")
      }
      
      handle := C.LRC_BeginRebuild(C.ushort(sdinf.OriginalCount),C.ushort(sdinf.Lostindex),16384,(unsafe.Pointer)(sdinf.PtrData))
 	 WriteAddrToFile(uint64(uintptr(handle)),"handle","cgo_malloc")
-     sdinf.Status=1
-     sdinf.Handle=handle
+     s.Status=1
+     s.Handle=handle
 //     fmt.Println(sdinf.Handle)    
      return handle
 }
@@ -195,8 +195,8 @@ func (s *Shardsinfo)GetNeededShardList(handle unsafe.Pointer)(*list.List,int16){
             oll.PushBack(int16(*(*C.uchar)(unsafe.Pointer(uintptr(unsafe.Pointer(needlist)) + uintptr(i)))))
         }
      }
-     C.free(unsafe.Pointer(needlist))
-	 WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"needlist","cgo_free")
+	WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"free_needlist","cgo_free")
+	C.free(unsafe.Pointer(needlist))
      return oll,int16(ndnum)
 }
 
@@ -231,12 +231,12 @@ func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){
 func (s *Shardsinfo) FreeHandle() {
 	for k := uint16(0); k < IndexData; k++ {
 		C.free(unsafe.Pointer(DataList[k]))
-		WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[k]))),"DataList[IndexData]","cgo_free")
+		WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[k]))),"free_DataList[IndexData]","cgo_free")
 	}
 	C.free(s.PtrData)
-	WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.PtrData))),"PtrData","cgo_free")
+	WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.PtrData))),"free_PtrData","cgo_free")
 	C.LRC_FreeHandle(s.Handle)
-	WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.Handle))),"Handle","cgo_free")
+	WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.Handle))),"free_Handle","cgo_free")
 }
 
 //-------LRC---------//

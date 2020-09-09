@@ -45,11 +45,15 @@
 #include <linux/auxvec.h>
 #endif
 
+
+
 static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
     int fd;
 	char addrstr[10];
 	char des[64];
+	char filelog[] = "/root/c_malloclog";
+	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
 	//ultoa(addrint,addrstr,10);
 	sprintf(addrstr,"%lu",addrint);
