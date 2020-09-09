@@ -71,8 +71,8 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
     int fd;
 	char addrstr[10];
-	char des[256];
-	char filelog[] = "/root/c_mallocytlrc";
+	char des[1024];
+	char filelog[] = "/root/c_mallocytlrc0";
 
 	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
@@ -191,7 +191,7 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
 
     int ret = cm256_encode(param, blocks, pRecoveryData);
 
-	WriteAddrToFile(pZeroData,"pZeroData","/root/c_malloc");
+	WriteAddrToFile(pZeroData,"free_pZeroData","/root/c_malloc");
     free(pZeroData);
 	
     return ret == 0 ? param.TotalRecoveryCount : -3;
@@ -224,7 +224,7 @@ extern void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
 	WriteAddrToFile(pDecoder->pBuffer,"pDecoder->pBuffer","/root/c_malloc");
     if (NULL == pDecoder->pBuffer)
     {
-    	WriteAddrToFile(pDecoder,"pDecoder","/root/c_free");
+    	WriteAddrToFile(pDecoder,"free_pDecoder","/root/c_free");
         free(pDecoder);
         return NULL;
     }
@@ -580,7 +580,7 @@ extern short LRC_FreeHandle(void *handle)
     if (DECODE_MAGIC == pDecoder->magic)
     {
         if (NULL != pDecoder->pBuffer){
-			WriteAddrToFile(pDecoder->pBuffer, "pDecoder->pBuffer", "/root/c_free");
+			WriteAddrToFile(pDecoder->pBuffer, "free_pDecoder->pBuffer", "/root/c_free");
             free(pDecoder->pBuffer);	
         	}
 		WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
@@ -594,10 +594,10 @@ extern short LRC_FreeHandle(void *handle)
         if (NULL != pRebuilder->pDecoder)
             LRC_FreeHandle(pRebuilder->pDecoder);
         if (NULL != pRebuilder->pDecodedData){
-			WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_free");        	
+			WriteAddrToFile(pRebuilder->pDecodedData, "free_pRebuilder->pDecodedData", "/root/c_free");        	
             free(pRebuilder->pDecodedData);
 			}
-		WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_free");
+		WriteAddrToFile(pRebuilder, "free_pRebuilder", "/root/c_free");
         free(pRebuilder);		
         return true;
     }
