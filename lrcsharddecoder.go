@@ -167,17 +167,17 @@ func (s *Shardsinfo)GetRCHandle(sdinf *Shardsinfo) (unsafe.Pointer){
      }
 */
      IndexData = 0
-	 s.PtrData = C.malloc(C.size_t(16384))
+	 sdinf.PtrData = C.malloc(C.size_t(16384))
 	 WriteAddrToFile(uint64(uintptr(sdinf.PtrData)),"PtrData","cgo_malloc")
-	 s.ShardSize = BufferSize
-     if s.PtrData == nil {
+	 sdinf.ShardSize = BufferSize
+     if sdinf.PtrData == nil {
         panic("ptrData malloc failed!\n")
      }
      
      handle := C.LRC_BeginRebuild(C.ushort(sdinf.OriginalCount),C.ushort(sdinf.Lostindex),16384,(unsafe.Pointer)(sdinf.PtrData))
 	 WriteAddrToFile(uint64(uintptr(handle)),"handle","cgo_malloc")
-     s.Status=1
-     s.Handle=handle
+     sdinf.Status=1
+     sdinf.Handle=handle
 //     fmt.Println(sdinf.Handle)    
      return handle
 }
