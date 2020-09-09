@@ -193,7 +193,7 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
     int ret = cm256_encode(param, blocks, pRecoveryData);
 
 	WriteAddrToFile(pZeroData,"free_pZeroData","/root/c_free");
-	printf("free_pZeroData=%p \n";pZeroData);
+	printf("free_pZeroData=%p \n",pZeroData);
     free(pZeroData);
 	
     return ret == 0 ? param.TotalRecoveryCount : -3;
