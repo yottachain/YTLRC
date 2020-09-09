@@ -593,7 +593,7 @@ extern short LRC_FreeHandle(void *handle)
 		WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
 		printf("pDecoder=%p\n",pDecoder);
         free(pDecoder);
-		sleep(2)
+		sleep(2);
         return true;
     }
 
