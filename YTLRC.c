@@ -72,7 +72,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
     int fd;
 	char addrstr[10];
 	char des[256];
-	char filelog[] = "/root/c_mallocytlrc2";
+	char filelog[] = "/root/c_mallocytlrc";
 
 	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
@@ -83,6 +83,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 	strcpy(des,entry);
 	strcat(des," ");
 	strcat(des,addrstr);
+	strcat(des,"\n\r");
 	fd = open(filename,O_RDWR|O_CREAT|O_APPEND);	
 	write(fd,des,sizeof(des));
 	close(fd);
