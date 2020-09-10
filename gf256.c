@@ -46,7 +46,7 @@
 #endif
 
 
-
+/*
 static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
     int fd;
@@ -67,7 +67,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 	//sleep(2);
 	return 0;
 }
-
+*/
 
 //------------------------------------------------------------------------------
 // Workaround for ARMv7 that doesn't provide vqtbl1_*
@@ -781,7 +781,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         char * tmpch=malloc(25);
-		WriteAddrToFile(tmpch, "tmpch", "/root/c_gfmalloc");
+		//WriteAddrToFile(tmpch, "tmpch", "/root/c_gfmalloc");
         memset(tmpch,0,25);
         const unsigned count = (unsigned)bytes / 8;
         for (ii = 0; ii < count; ++ii){
@@ -792,7 +792,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         x16 = (GF256_M128 *)(x8 + count);
         y16 = (const GF256_M128 *)(y8 + count);
         bytes -= (count * 8);
-		WriteAddrToFile(tmpch, "free_tmpch", "/root/c_gfmalloc");
+		//WriteAddrToFile(tmpch, "free_tmpch", "/root/c_gfmalloc");
 		free(tmpch);
     }
 #else // GF256_TARGET_MOBILE

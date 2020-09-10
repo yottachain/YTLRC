@@ -66,7 +66,7 @@ typedef struct
 static short globalRecoveryCount = 10;
 
 
-
+/*
 static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
 //	return;
@@ -91,6 +91,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 	//sleep(2);
 	return 0;
 }
+*/
 
 static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
 {
@@ -180,7 +181,7 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
     for (i = 0; i < originalCount; i++)
         blocks[i].pData = (uint8_t *)originalShards[i] + 1; // Ignore the index byte
     pZeroData = malloc(shardSize - 1 + 8);
-	WriteAddrToFile(pZeroData,"pZeroData","/root/c_malloc");
+	//WriteAddrToFile(pZeroData,"pZeroData","/root/c_malloc");
     if (NULL == pZeroData)
         return -2;
     memset(pZeroData, 0, shardSize - 1);
@@ -193,8 +194,8 @@ extern short LRC_Encode(const void *originalShards[], unsigned short originalCou
 
     int ret = cm256_encode(param, blocks, pRecoveryData);
 
-	WriteAddrToFile(pZeroData,"free_pZeroData","/root/c_free");
-	printf("free_pZeroData=%p \n",pZeroData);
+	//WriteAddrToFile(pZeroData,"free_pZeroData","/root/c_free");
+	//printf("free_pZeroData=%p \n",pZeroData);
     free(pZeroData);
 	
     return ret == 0 ? param.TotalRecoveryCount : -3;
@@ -214,25 +215,23 @@ extern void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSi
         return NULL;
 
     DecoderLRC *pDecoder = malloc(sizeof(DecoderLRC));
-	WriteAddrToFile(pDecoder,"pDecoder","/root/c_malloc");
-	sleep(2);
+	//WriteAddrToFile(pDecoder,"pDecoder","/root/c_malloc");
+	//sleep(2);
     if (NULL == pDecoder)
         return NULL;
     pDecoder->magic = DECODE_MAGIC;
     InitialParam(&pDecoder->param, originalCount, shardSize, true);
-	sleep(2);
     pDecoder->pDecodedData = pData;
     pDecoder->numShards = 0;
     for (j = 0; j < MAXSHARDS; j++)
         pDecoder->blocks[j].pData = NULL;
     pDecoder->pBuffer = malloc(4 * shardSize);
-	WriteAddrToFile(pDecoder->pBuffer,"pDecoder->pBuffer","/root/c_malloc");
-	sleep(2);
+	//WriteAddrToFile(pDecoder->pBuffer,"pDecoder->pBuffer","/root/c_malloc");
+	//sleep(2);
 	if (NULL == pDecoder->pBuffer)
     {
-    	WriteAddrToFile(pDecoder,"free_pDecoder","/root/c_free");
+    	//WriteAddrToFile(pDecoder,"free_pDecoder","/root/c_free");
         free(pDecoder);
-		sleep(2);
         return NULL;
     }
     memset(ZeroBuf(pDecoder), 0, shardSize); // The last shard is zero shard
@@ -587,14 +586,11 @@ extern short LRC_FreeHandle(void *handle)
     if (DECODE_MAGIC == pDecoder->magic)
     {
         if (NULL != pDecoder->pBuffer){
-			WriteAddrToFile(pDecoder->pBuffer, "free_pDecoder->pBuffer", "/root/c_free");
+			//WriteAddrToFile(pDecoder->pBuffer, "free_pDecoder->pBuffer", "/root/c_free");
             free(pDecoder->pBuffer);
-		    sleep(2);
         	}
-		WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
-		printf("pDecoder=%p\n",pDecoder);
+		//WriteAddrToFile(pDecoder, "pDecoder", "/root/c_free");
         free(pDecoder);
-		sleep(2);
         return true;
     }
 
@@ -604,10 +600,10 @@ extern short LRC_FreeHandle(void *handle)
         if (NULL != pRebuilder->pDecoder)
             LRC_FreeHandle(pRebuilder->pDecoder);
         if (NULL != pRebuilder->pDecodedData){
-			WriteAddrToFile(pRebuilder->pDecodedData, "free_pRebuilder->pDecodedData", "/root/c_free");        	
+			//WriteAddrToFile(pRebuilder->pDecodedData, "free_pRebuilder->pDecodedData", "/root/c_free");        	
             free(pRebuilder->pDecodedData);
 			}
-		WriteAddrToFile(pRebuilder, "free_pRebuilder", "/root/c_free");
+		//WriteAddrToFile(pRebuilder, "free_pRebuilder", "/root/c_free");
         free(pRebuilder);		
         return true;
     }
@@ -654,8 +650,7 @@ extern void *LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
         return NULL;
 
     Rebuilder *pRebuilder = malloc(sizeof(Rebuilder));
-	WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_malloc");
-	sleep(2);
+	//WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_malloc");
     if (NULL == pRebuilder)
         return NULL;
     pRebuilder->magic = REBUILD_MAGIC;
@@ -807,8 +802,7 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
         }
 
         pRebuilder->pDecodedData = malloc((pRebuilder->param.TotalOriginalCount + 1) * pRebuilder->param.BlockBytes); // Last block is reserved for figuring local recovery shard for global recovery shards
-		WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_malloc");
-		sleep(2);
+		//WriteAddrToFile(pRebuilder->pDecodedData, "pRebuilder->pDecodedData", "/root/c_malloc");
 		if (NULL == pRebuilder->pDecodedData)
             return -4;
         pRebuilder->pDecoder = LRC_BeginDecode(pRebuilder->param.OriginalCount, pRebuilder->param.BlockBytes + 1, pRebuilder->pDecodedData);
