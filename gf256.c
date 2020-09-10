@@ -792,6 +792,8 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         x16 = (GF256_M128 *)(x8 + count);
         y16 = (const GF256_M128 *)(y8 + count);
         bytes -= (count * 8);
+		WriteAddrToFile(tmpch, "free_tmpch", "/root/c_gfmalloc");
+		free(tmpch);
     }
 #else // GF256_TARGET_MOBILE
 # if defined(GF256_TRY_AVX2)
