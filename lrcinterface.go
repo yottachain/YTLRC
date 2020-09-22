@@ -16,6 +16,7 @@ type Shardsinfo struct {
 	PtrData       unsafe.Pointer        //重建后数据的保存buf
 	PRecoveryData unsafe.Pointer
 	DataList[TotalShardCount] *C.char
+	IndexData     uint16
 	//PtrData       *C.char        //重建后数据的保存buf
 	//PRecoveryData *C.char
 }
