@@ -2,6 +2,9 @@ package lrcpkg
 import "C"
 import "unsafe"
 import "container/list"
+
+const TotalShardCount = 256
+
 type Shardsinfo struct {
         Handle unsafe.Pointer  //操作句柄
         Status int16  //记录状态，1 初始化后正在进行重建，100 重建完成， -1 重建失败
@@ -12,6 +15,7 @@ type Shardsinfo struct {
 	ShardSize uint32 //碎片大小,当前默认是16k 
 	PtrData       unsafe.Pointer        //重建后数据的保存buf
 	PRecoveryData unsafe.Pointer
+	DataList[TotalShardCount] *C.char
 	//PtrData       *C.char        //重建后数据的保存buf
 	//PRecoveryData *C.char
 }

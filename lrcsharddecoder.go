@@ -117,10 +117,9 @@ import (
 
 const BufferSize = 16384
 const TotalOriginalCount = 128
-const TotalShardCount = 256
 type Shard  [BufferSize]byte
 var IndexData uint16
-var DataList[TotalShardCount] *C.char
+//var DataList[TotalShardCount] *C.char
 
 type OriginalShards struct {
 	OriginalShards []Shard
@@ -205,7 +204,7 @@ func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,sdata []byte)(int16){
 
      temp := (*C.char)(C.malloc(C.size_t(16384)))
      C.memcpy(unsafe.Pointer(temp),unsafe.Pointer(&sdata[0]),16384)
-     DataList[IndexData] = temp
+     s.DataList[IndexData] = temp
 	 //WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[IndexData]))),"DataList[IndexData]","cgo_malloc")
      IndexData++
 
@@ -230,7 +229,7 @@ func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){
 
 func (s *Shardsinfo) FreeHandle() {
 	for k := uint16(0); k < IndexData; k++ {
-		C.free(unsafe.Pointer(DataList[k]))
+		C.free(unsafe.Pointer(s.DataList[k]))
 		//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[k]))),"free_DataList[IndexData]","cgo_free")
 	}
 	C.free(s.PtrData)
