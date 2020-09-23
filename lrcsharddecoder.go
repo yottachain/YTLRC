@@ -165,7 +165,7 @@ func (s *Shardsinfo)GetRCHandle(sdinf *Shardsinfo) (unsafe.Pointer){
          datalist[i]=(*C.char)(C.malloc(C.size_t(16384)))
      }
 */
-     s.IndexData = 0
+     sdinf.IndexData = 0
 	 sdinf.PtrData = C.malloc(C.size_t(16384))
 	 //WriteAddrToFile(uint64(uintptr(sdinf.PtrData)),"PtrData","cgo_malloc")
 	 sdinf.ShardSize = BufferSize
@@ -205,6 +205,9 @@ func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,sdata []byte)(int16){
      temp := (*C.char)(C.malloc(C.size_t(16384)))
      C.memcpy(unsafe.Pointer(temp),unsafe.Pointer(&sdata[0]),16384)
      s.DataList[s.IndexData] = temp
+     //if s.IndexData >= 120{
+		// fmt.Println("[recover] s.IndexData=",s.IndexData)
+	 //}
 	 //WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[IndexData]))),"DataList[IndexData]","cgo_malloc")
      s.IndexData++
 
