@@ -6,19 +6,18 @@ import "container/list"
 const TotalShardCount = 256
 
 type Shardsinfo struct {
-        Handle unsafe.Pointer  //操作句柄
-        Status int16  //记录状态，1 初始化后正在进行重建，100 重建完成， -1 重建失败
-	RecoverNum int16  //校验快总数
-	RebuilderNum int16  //解码器最大允许数
+           Handle unsafe.Pointer  //操作句柄
+           Status int16  //记录状态，1 初始化后正在进行重建，100 重建完成， -1 重建失败
+	   RecoverNum int16  //校验快总数
+	 RebuilderNum int16  //解码器最大允许数
 	OriginalCount uint16 //原始数据最大碎片数
         Lostindex uint16  //希望恢复块的序号
-	ShardSize uint32 //碎片大小,当前默认是16k 
-	PtrData       unsafe.Pointer        //重建后数据的保存buf
+	    ShardSize uint32 //碎片大小,当前默认是16k
+	      PtrData unsafe.Pointer        //重建后数据的保存buf
 	PRecoveryData unsafe.Pointer
 	DataList[TotalShardCount] *C.char
 	IndexData     uint16
-	//PtrData       *C.char        //重建后数据的保存buf
-	//PRecoveryData *C.char
+    ShardExist[TotalShardCount]  uint8
 }
 
 type LRCEngine interface {
