@@ -17,7 +17,7 @@ type Shardsinfo struct {
 	PRecoveryData unsafe.Pointer
 	DataList[TotalShardCount] *C.char
 	IndexData     uint16
-    ShardExist[TotalShardCount]  uint8
+    ShardExist[TotalShardCount]  uint16
 }
 
 type LRCEngine interface {
