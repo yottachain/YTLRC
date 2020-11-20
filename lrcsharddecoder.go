@@ -195,7 +195,7 @@ func (s *Shardsinfo)GetNeededShardList(handle unsafe.Pointer)(*list.List,int16){
         }
      }
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"free_needlist","cgo_free")
-	C.free(unsafe.Pointer(needlist))
+	 C.free(unsafe.Pointer(needlist))
      return oll,int16(ndnum)
 }
 
