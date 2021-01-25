@@ -58,3 +58,7 @@ Temporary Items
 .vscode/*
 *.exe
 testdata/*
+
+# test file
+demo
+

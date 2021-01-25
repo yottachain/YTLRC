@@ -66,14 +66,16 @@ typedef struct
 static short globalRecoveryCount = 10;
 
 
-/*
+
 static int WriteAddrToFile(void *addr, char *entry, char *filename)
 {
 //	return;
     int fd;
 	char addrstr[10];
 	char des[256];
-	char filelog[] = "/root/c_mallocytlrc0";
+//	char filelog[] = "/root/ytago/src/github.com/yottachain/YTLRC/demo/debug_ytlrc0";
+    
+	char filelog[] = "debug_ytlrc0";
 
 	filename = filelog;
 	unsigned long  addrint = (unsigned long)addr;
@@ -91,7 +93,7 @@ static int WriteAddrToFile(void *addr, char *entry, char *filename)
 	//sleep(2);
 	return 0;
 }
-*/
+
 
 static inline uint8_t *GlobalRecoveryBuf(DecoderLRC *pDecoder)
 {
@@ -650,7 +652,7 @@ extern void *LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
         return NULL;
 
     Rebuilder *pRebuilder = malloc(sizeof(Rebuilder));
-	//WriteAddrToFile(pRebuilder, "pRebuilder", "/root/c_malloc");
+	WriteAddrToFile(pRebuilder, "pRebuilder", "ytlrcdebug");
     if (NULL == pRebuilder)
         return NULL;
     pRebuilder->magic = REBUILD_MAGIC;
@@ -667,8 +669,27 @@ extern void *LRC_BeginRebuild(unsigned short originalCount, unsigned short iLost
     pRebuilder->numShards = 0;
     pRebuilder->pDecodedData = NULL;
     pRebuilder->param = param;
-
+	//WriteAddrToFile(pRebuilder, "pRebuilder", "./ytlrcdebug");
     return pRebuilder;
+}
+
+/*
+ *set parameter for control lrc rebuild process
+ */
+extern int LRC_SetHandleParam(void *handle, unsigned short iLost, unsigned short stage) {
+//#if 0
+	if (NULL == handle){
+        return -1;
+	}
+
+	Rebuilder *pRebuilder = handle;
+    if (REBUILD_MAGIC != pRebuilder->magic)
+        return -2;
+
+	pRebuilder->stage=stage;
+	pRebuilder->iLost=iLost;
+//#endif
+	return 0;
 }
 
 /*

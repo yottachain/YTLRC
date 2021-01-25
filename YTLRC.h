@@ -57,6 +57,11 @@ short LRC_Encode(const void *originalShards[], unsigned short originalCount, uns
 void *LRC_BeginDecode(unsigned short originalCount, unsigned long shardSize, void *pData);
 
 /*
+ *set parameter for control lrc rebuild process
+ */
+extern int LRC_SetHandleParam(void *handle, unsigned short iLost, unsigned short stage);
+
+/*
  * Decode one shard for specific decode process
  * handle: handle of decode process
  * pShard: data of this shard

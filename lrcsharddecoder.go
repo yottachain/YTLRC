@@ -40,6 +40,36 @@ typedef struct
                       // one for zero shard
 }DecoderLRC_t;
 
+typedef struct
+{
+    unsigned long magic;
+    short iLost;
+    CM256LRC param;
+    uint8_t *pRepairedData;
+    enum
+    {
+        INIT_REBUILD,
+        HOR_REBUILD,
+        VER_REBUILD,
+        HOR_RECOVERY_REBUILD,
+        VER_RECOVERY_REBUILD,
+        GLOBAL_RECOVERY_REBUILD,
+        GLOBAL_REBUILD
+    } stage;
+    enum
+    {
+        UNKNOWN,
+        EXISTED,
+        LOST,
+        REQUEST
+    } shardStatus[MAXSHARDS];
+    short remainShards;               // Used for HOR_REBUILD, VER_REBUILD, HOR_RECOVERY_REBUILD,  VER_RECOVERY_REBUILD, GLOBAL_RECOVERY_REBUILD
+    short numShards;                  // Number of existing shards
+    const uint8_t *shards[MAXSHARDS]; // Existing shards
+    DecoderLRC_t *pDecoder;             // Used for GLOBAL_REBUILD
+    uint8_t *pDecodedData;            // Used for GLOBAL_REBUILD
+} Rebuilder;
+
 static void** makeArray(int size) {
    void ** ret;
    ret = (void**)malloc(sizeof(void *) * size);
@@ -172,13 +202,36 @@ func (s *Shardsinfo)GetRCHandle(sdinf *Shardsinfo) (unsafe.Pointer){
      if sdinf.PtrData == nil {
         panic("ptrData malloc failed!\n")
      }
-     
+
+     fmt.Println("origcount=",sdinf.OriginalCount,"lostidx=",sdinf.Lostindex,"ptrdataaddr=",sdinf.PtrData)
      handle := C.LRC_BeginRebuild(C.ushort(sdinf.OriginalCount),C.ushort(sdinf.Lostindex),16384,(unsafe.Pointer)(sdinf.PtrData))
 	 //WriteAddrToFile(uint64(uintptr(handle)),"handle","cgo_malloc")
+	 if handle == nil {
+	 	fmt.Println("get handle error, handle is nil!")
+	 }
+
+	 rbd := (*C.Rebuilder)(handle)
      sdinf.Status=1
      sdinf.Handle=handle
-//     fmt.Println(sdinf.Handle)    
+     fmt.Printf("sdinf.handle=%p \n",&(sdinf.Handle))
+     fmt.Println("Rebuilder=",rbd)
      return handle
+}
+
+func (s *Shardsinfo)SetHandleParam(handle unsafe.Pointer,lostidx uint8, stage uint8) error{
+	//var decoder *C.Rebuilder
+	rebuider := (*C.Rebuilder)(handle)
+	fmt.Println("old_lostidx=",rebuider.iLost,"stage=",rebuider.stage,)
+	ret := C.LRC_SetHandleParam(handle,C.ushort(lostidx),C.ushort(stage))
+	if ret != 0{
+		err := fmt.Errorf("set handle param error!")
+		fmt.Println(err)
+		return err
+	}
+	//var decoder *C.Rebuilder
+	fmt.Println("lostidx=",rebuider.iLost,"stage=",rebuider.stage,)
+
+	return nil
 }
 
 func (s *Shardsinfo)GetNeededShardList(handle unsafe.Pointer)(*list.List,int16){
