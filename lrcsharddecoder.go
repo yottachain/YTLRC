@@ -218,7 +218,19 @@ func (s *Shardsinfo)GetRCHandle(sdinf *Shardsinfo) (unsafe.Pointer){
      return handle
 }
 
-func (s *Shardsinfo)SetHandleParam(handle unsafe.Pointer,lostidx uint8, stage uint8) error{
+func (s *Shardsinfo) GetHandleParam(handle unsafe.Pointer) (int, int, error){
+	var err error
+	if nil == handle  {
+		err = fmt.Errorf("error: hanle is nil")
+		return -1, -1, err
+	}
+	rebuider := (*C.Rebuilder)(handle)
+	lostidx := rebuider.iLost
+	stage := rebuider.stage
+	return int(lostidx), int(stage), nil
+}
+
+func (s *Shardsinfo) SetHandleParam(handle unsafe.Pointer,lostidx uint8, stage uint8) error{
 	//var decoder *C.Rebuilder
 	rebuider := (*C.Rebuilder)(handle)
 	fmt.Println("old_lostidx=",rebuider.iLost,"stage=",rebuider.stage,)

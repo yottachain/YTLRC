@@ -30,4 +30,5 @@ type LRCEngine interface {
 	LRCEncode(sdinf *Shardsinfo, OriginalShards [][]byte) int16   //LRC编码接口，返回冗余数据分片
 	LRCBeginDecode(OriginalShards [][]byte) unsafe.Pointer        //创建解码任务，返回句柄
 	LRCDecode(handle unsafe.Pointer, ptr byte) int16              //LRC解码，大于0成功，小于0失败，等于0需要继续解码
+	SetHandleParam(handle unsafe.Pointer,lostidx uint8, stage uint8) error  //通过修改重建参数以控制分片重建过程
 }
