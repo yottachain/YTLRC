@@ -241,7 +241,7 @@ func (s *Shardsinfo) SetHandleParam(handle unsafe.Pointer,lostidx uint8, stage u
 		return err
 	}
 	//var decoder *C.Rebuilder
-	fmt.Println("lostidx=",rebuider.iLost,"stage=",rebuider.stage,)
+	fmt.Println("lostidx=",rebuider.iLost,"stage=",rebuider.stage)
 
 	return nil
 }
@@ -264,11 +264,27 @@ func (s *Shardsinfo)GetNeededShardList(handle unsafe.Pointer)(*list.List,int16){
      return oll,int16(ndnum)
 }
 
-func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,sdata []byte)(int16){
+func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,shard []byte)(int16, error){
      var stat C.short
+     var err error
+
+     if nil == handle {
+     	err = fmt.Errorf("error: handle is nil, func: AddShardData")
+     	return -100, err
+	 }
+
+	 if nil == shard {
+		 err = fmt.Errorf("error: shard is nil, func: AddShardData")
+		 return -200, err
+	 }
+
+	if len(shard) != 16384 {
+		err = fmt.Errorf("error: shard != 16384, func: AddShardData")
+		return -300, err
+	}
 
      temp := (*C.char)(C.malloc(C.size_t(16384)))
-     C.memcpy(unsafe.Pointer(temp),unsafe.Pointer(&sdata[0]),16384)
+     C.memcpy(unsafe.Pointer(temp),unsafe.Pointer(&shard[0]),16384)
      s.DataList[s.IndexData] = temp
      //if s.IndexData >= 120{
 		// fmt.Println("[recover] s.IndexData=",s.IndexData)
@@ -278,7 +294,7 @@ func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,sdata []byte)(int16){
 
      stat = C.LRC_OneShardForRebuild(handle,unsafe.Pointer(temp))
 
-     return int16(stat)
+     return int16(stat), nil
 }
 
 func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){

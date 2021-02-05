@@ -724,10 +724,13 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
             short n = y * pParam->HorLocalCount;
             for (j = 0; j < pParam->HorLocalCount; j++)
             {
-                if (n + j == iLost)
-                    pList[numRequest++] = pParam->OriginalCount + pParam->FirstHorRecoveryIndex + y; // Horizonal local recovery shard
-                else if (n + j < pParam->OriginalCount)
-                    pList[numRequest++] = n + j;
+                if (n + j == iLost){
+					if (EXISTED != pRebuilder->shardStatus[pParam->OriginalCount + pParam->FirstHorRecoveryIndex + y])  //when recover retry, some shards may exist 
+                        pList[numRequest++] = pParam->OriginalCount + pParam->FirstHorRecoveryIndex + y; // Horizonal local recovery shard
+                }else if (n + j < pParam->OriginalCount){
+	                if (EXISTED != pRebuilder->shardStatus[n + j])
+                        pList[numRequest++] = n + j;
+                }
             }
             pRebuilder->remainShards = numRequest;
         }
@@ -741,8 +744,10 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
                 numRequest = 0;
                 short y = recoveryIndex - pParam->FirstHorRecoveryIndex;
                 short n = y * pParam->HorLocalCount;
-                for (j = 0; j < pParam->HorLocalCount && n + j < pParam->OriginalCount; j++)
-                    pList[numRequest++] = n + j;
+                for (j = 0; j < pParam->HorLocalCount && n + j < pParam->OriginalCount; j++){
+                    if (EXISTED != pRebuilder->shardStatus[n + j])
+                        pList[numRequest++] = n + j;
+                }                  
                 pRebuilder->remainShards = numRequest;
             }
             else if (recoveryIndex >= pParam->FirstVerRecoveryIndex && recoveryIndex < pParam->FirstVerRecoveryIndex + pParam->HorLocalCount)
@@ -755,9 +760,11 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
                 for (j = 0; j < pParam->VerLocalCount; j++)
                 {
                     short iRequest = j * pParam->HorLocalCount + x;
-                    if (iRequest < pParam->OriginalCount)
-                        pList[numRequest++] = iRequest;
-                }
+                    if (iRequest < pParam->OriginalCount){
+                        if (EXISTED != pRebuilder->shardStatus[iRequest])
+                            pList[numRequest++] = iRequest;
+					}   
+                }   
                 pRebuilder->remainShards = numRequest;
             }
             else if ((recoveryIndex >= pParam->FirstGlobalRecoveryIndex && recoveryIndex < pParam->FirstGlobalRecoveryIndex + pParam->GlobalRecoveryCount) || recoveryIndex == pParam->LocalRecoveryOfGlobalRecoveryIndex)
@@ -768,10 +775,13 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
                 short n = pParam->OriginalCount + pParam->FirstGlobalRecoveryIndex;
                 for (j = 0; j < pParam->GlobalRecoveryCount; j++)
                 {
-                    if (n + j == iLost)
-                        pList[j] = pParam->OriginalCount + pParam->LocalRecoveryOfGlobalRecoveryIndex;
-                    else
-                        pList[j] = n + j;
+                    if (n + j == iLost){
+                        if (EXISTED != pRebuilder->shardStatus[pParam->OriginalCount + pParam->LocalRecoveryOfGlobalRecoveryIndex])
+                            pList[j] = pParam->OriginalCount + pParam->LocalRecoveryOfGlobalRecoveryIndex;
+                    }else{
+                        if (EXISTED != pRebuilder->shardStatus[n + j])
+                            pList[j] = n + j;
+                    }
                 }
             }
             else
@@ -787,10 +797,13 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
         numRequest = 0;
         for (i = 0; i < pRebuilder->param.VerLocalCount; i++)
         {
-            if (index == pRebuilder->iLost)
-                pList[numRequest++] = pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x;
-            else if (index < pParam->OriginalCount)
+            if (index == pRebuilder->iLost){
+                if (EXISTED != pRebuilder->shardStatus[pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x]
+                    pList[numRequest++] = pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x;
+            }else if (index < pParam->OriginalCount){
+                if (EXISTED != pRebuilder->shardStatus[index]
                 pList[numRequest++] = index;
+            }
             index += pRebuilder->param.HorLocalCount;
         }
         pRebuilder->remainShards = numRequest;
