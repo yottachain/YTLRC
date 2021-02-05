@@ -798,11 +798,11 @@ extern short LRC_NextRequestList(void *handle, unsigned char *pList)
         for (i = 0; i < pRebuilder->param.VerLocalCount; i++)
         {
             if (index == pRebuilder->iLost){
-                if (EXISTED != pRebuilder->shardStatus[pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x]
+                if (EXISTED != pRebuilder->shardStatus[pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x])
                     pList[numRequest++] = pRebuilder->param.OriginalCount + pRebuilder->param.FirstVerRecoveryIndex + x;
             }else if (index < pParam->OriginalCount){
-                if (EXISTED != pRebuilder->shardStatus[index]
-                pList[numRequest++] = index;
+                if (EXISTED != pRebuilder->shardStatus[index])
+                    pList[numRequest++] = index;
             }
             index += pRebuilder->param.HorLocalCount;
         }
