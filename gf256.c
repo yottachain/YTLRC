@@ -785,7 +785,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         memset(tmpch,0,25);
         const unsigned count = (unsigned)bytes / 8;
         for (ii = 0; ii < count; ++ii){
-            sprintf(tmpch,"%lu",x8[ii]);
+            //sprintf(tmpch,"%lu",x8[ii]);
             x8[ii] ^= y8[ii];
         }
 
