@@ -313,12 +313,20 @@ func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){
 
 func (s *Shardsinfo) FreeHandle() {
 	for k := uint16(0); k < s.IndexData; k++ {
-		C.free(unsafe.Pointer(s.DataList[k]))
+		if s.DataList[k] != nil{
+			C.free(unsafe.Pointer(s.DataList[k]))
+		}
 		//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[k]))),"free_DataList[IndexData]","cgo_free")
 	}
-	C.free(s.PtrData)
+
+	if nil != s.PtrData{
+		C.free(s.PtrData)
+	}
+
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.PtrData))),"free_PtrData","cgo_free")
-	C.LRC_FreeHandle(s.Handle)
+	if nil != s.Handle{
+		C.LRC_FreeHandle(s.Handle)
+	}
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.Handle))),"free_Handle","cgo_free")
 }
 
@@ -422,5 +430,7 @@ func (s *Shardsinfo) LRCDecode(Dshard Shard) (OShardData []byte, res int) {
 
 //use to free recoverData after encode
 func (s *Shardsinfo) FreeRecoverData(){
-    C.free(s.PRecoveryData)
+	if nil != s.PRecoveryData{
+		C.free(s.PRecoveryData)
+	}
 }
