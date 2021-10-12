@@ -99,6 +99,16 @@ static void* getCmemData(void *dst, void *src, int size){
 	return ret;
 }
 
+static void cgofree(void *ptr){
+	if (NULL != ptr)
+        free(ptr)
+}
+
+static void LRC_cgoFreeHandle(void *ptr){
+	if (NULL != ptr)
+		LRC_FreeHandle(ptr)
+}
+
 //static void printRcvSlic(void *start, int sliceSize, int sliceNum){
 //	int i, j;
 //	for (i = 0; i < sliceNum; i++){
@@ -260,7 +270,7 @@ func (s *Shardsinfo)GetNeededShardList(handle unsafe.Pointer)(*list.List,int16){
         }
      }
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"free_needlist","cgo_free")
-	 C.free(unsafe.Pointer(needlist))
+	 C.cgofree(unsafe.Pointer(needlist))
      return oll,int16(ndnum)
 }
 
@@ -313,20 +323,14 @@ func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){
 
 func (s *Shardsinfo) FreeHandle() {
 	for k := uint16(0); k < s.IndexData; k++ {
-		if s.DataList[k] != nil{
-			C.free(unsafe.Pointer(s.DataList[k]))
-		}
+		C.cgofree(unsafe.Pointer(s.DataList[k]))
 		//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[k]))),"free_DataList[IndexData]","cgo_free")
 	}
 
-	if nil != s.PtrData{
-		C.free(s.PtrData)
-	}
+	C.cgofree(s.PtrData)
 
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.PtrData))),"free_PtrData","cgo_free")
-	if nil != s.Handle{
-		C.LRC_FreeHandle(s.Handle)
-	}
+	C.LRC_cgoFreeHandle(s.Handle)
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(s.Handle))),"free_Handle","cgo_free")
 }
 
@@ -386,8 +390,8 @@ func (s *Shardsinfo) LRCEncode(OriginalShards []Shard) []Shard {
 	//}
 
 	//C.free(s.PRecoveryData)
-	C.free(unsafe.Pointer(pts))
-	C.free(OshardArr)
+	C.cgofree(unsafe.Pointer(pts))
+	C.cgofree(OshardArr)
 	return rcvData
 }
 
@@ -418,19 +422,17 @@ func (s *Shardsinfo) LRCDecode(Dshard Shard) (OShardData []byte, res int) {
 		Osize := (s.ShardSize-1) * uint32(s.OriginalCount)
 		OShardData = make([]byte, Osize)
 		C.getCmemData(unsafe.Pointer(&OShardData[0]), s.PRecoveryData, C.int(Osize))
-		C.free(s.PRecoveryData)
-		C.LRC_FreeHandle(s.Handle)
+		C.cgofree(s.PRecoveryData)
+		C.LRC_cgoFreeHandle(s.Handle)
 	}
 	if res < 0{
-		C.free(s.PRecoveryData)
-		C.LRC_FreeHandle(s.Handle)
+		C.cgofree(s.PRecoveryData)
+		C.LRC_cgoFreeHandle(s.Handle)
 	}
 	return
 }
 
 //use to free recoverData after encode
 func (s *Shardsinfo) FreeRecoverData(){
-	if nil != s.PRecoveryData{
-		C.free(s.PRecoveryData)
-	}
+	C.cgofree(s.PRecoveryData)
 }
