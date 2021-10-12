@@ -101,12 +101,12 @@ static void* getCmemData(void *dst, void *src, int size){
 
 static void cgofree(void *ptr){
 	if (NULL != ptr)
-        free(ptr)
+        free(ptr);
 }
 
 static void LRC_cgoFreeHandle(void *ptr){
 	if (NULL != ptr)
-		LRC_FreeHandle(ptr)
+		LRC_FreeHandle(ptr);
 }
 
 //static void printRcvSlic(void *start, int sliceSize, int sliceNum){
