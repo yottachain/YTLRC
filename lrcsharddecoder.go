@@ -324,8 +324,11 @@ func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){
 func (s *Shardsinfo) FreeHandle() {
 	for k := uint16(0); k < s.IndexData; k++ {
 		C.cgofree(unsafe.Pointer(s.DataList[k]))
+		s.DataList[k] = nil
 		//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[k]))),"free_DataList[IndexData]","cgo_free")
 	}
+
+	s.IndexData = 0
 
 	C.cgofree(s.PtrData)
 
