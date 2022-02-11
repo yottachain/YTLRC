@@ -61,4 +61,5 @@ testdata/*
 
 # test file
 demo
-
+.idea
+si/
