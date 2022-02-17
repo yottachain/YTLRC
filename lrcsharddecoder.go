@@ -294,6 +294,9 @@ func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,shard []byte)(int16, erro
 	}
 
      temp := (*C.char)(C.malloc(C.size_t(16384)))
+     if temp == nil {
+     	return -400, fmt.Errorf("AddShardData malloc memory fail")
+	 }
      C.memcpy(unsafe.Pointer(temp),unsafe.Pointer(&shard[0]),16384)
      s.DataList[s.IndexData] = temp
      //if s.IndexData >= 120{
@@ -363,6 +366,10 @@ func (s *Shardsinfo) LRCEncode(OriginalShards []Shard) []Shard {
 	count := len(OriginalShards)
 	OshardArr := C.malloc(C.size_t(count) * BufferSize)
 
+	if OshardArr == nil {
+		return nil
+	}
+
 	pts := (*unsafe.Pointer)(unsafe.Pointer(C.makeArray(C.int(len(OriginalShards)))))
 
 	for i, Oshard := range OriginalShards {
@@ -411,6 +418,10 @@ func (s *Shardsinfo)SaveShardtoFile2(handle unsafe.Pointer ){
 
 func (s *Shardsinfo) LRCBeginDecode(OriginalCount uint16, ShardSize uint32) unsafe.Pointer {
 	PRecoveryData := C.malloc(C.size_t(C.uint(ShardSize) * C.uint(OriginalCount)))
+	if PRecoveryData == nil {
+		return nil
+	}
+
 	s.ShardSize = ShardSize
 	s.OriginalCount = OriginalCount
 	s.PRecoveryData = PRecoveryData
