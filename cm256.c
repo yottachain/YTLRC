@@ -138,7 +138,7 @@ extern void CM256EncodeBlock(
     {
         // No meaningful operation here, degenerate to outputting the same data each time.
 
-        memcpy(recoveryBlockData, originals[0].pData, params.BlockBytes);\
+        memcpy(recoveryBlockData, originals[params.FirstElement].pData, params.BlockBytes);\
         return;
     }
     // else OriginalCount >= 2:
@@ -593,7 +593,7 @@ extern int cm256_decode(
     if (params.OriginalCount == 1)
     {
         // It is the same block repeated
-        blocks[0].lrcIndex = 0;
+        blocks[params.FirstElement].lrcIndex = params.FirstElement;
         return 0;
     }
 

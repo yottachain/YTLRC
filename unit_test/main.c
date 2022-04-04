@@ -602,7 +602,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
 
         /* Encode */
         QueryPerformanceCounter(&t0);
-        short recoveryCount = LRC_Encode(shards, originalCount, shardSize, recoveryData);
+        short recoveryCount = LRC_Encode((const void **)shards, originalCount, shardSize, recoveryData);
         if ( recoveryCount <= 0) {
             printf("Encoder error\n");
             return false;
@@ -613,7 +613,7 @@ bool LRCTesting(int minOriginalCount, int maxOriginalCount, int recoveryCount, i
         double opusec = tsum.QuadPart * GetPerfFrequencyInverse() * 1000000.;
         double mbps = ((long)(shardSize -1) * originalCount / opusec);
         printf("Encoder: %d bytes per block, k = %d, m = %d : %lf usec, %lf MBps\n", (int)(shardSize-1),  (int)originalCount, (int)recoveryCount, opusec, mbps);
-        
+
         /* Decode */
         for (j = 0; j < numLoops; j++) {
             QueryPerformanceCounter(&t0);
@@ -684,7 +684,7 @@ bool RebuildTest(int minOriginalCount, int maxOriginalCount, int probability, in
                 for (j = 1; j < shardSize; j++)
                     shards[i][j] = rand();
             }
-            LRC_Encode(shards, originalCount, shardSize, shardbuf + originalCount * shardSize);
+            LRC_Encode((const void **)shards, originalCount, shardSize, shardbuf + originalCount * shardSize);
 
             uint8_t needlist[256];
             short m, n;
