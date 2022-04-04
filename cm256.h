@@ -51,7 +51,7 @@ extern "C" {
  *
  * Returns 0 on success, and any other code indicates failure.
  */
-extern int cm256_init_(int version);
+ int cm256_init_(int version);
 #define cm256_init() cm256_init_(CM256_VERSION)
 
 

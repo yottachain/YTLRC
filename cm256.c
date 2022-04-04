@@ -75,7 +75,7 @@
 
 //-----------------------------------------------------------------------------
 // Initialization
-int cm256_init_(int version)
+extern int cm256_init_(int version)
 {
     if (version != CM256_VERSION)
     {

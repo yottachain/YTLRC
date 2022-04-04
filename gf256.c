@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 #include "gf256.h"
-
+#include <stdlib.h>
 #ifdef LINUX_ARM
 #include <unistd.h>
 #include <fcntl.h>
@@ -369,7 +369,7 @@ static void gf256_poly_init(int polynomialIndex)
 // Construct EXP and LOG tables from polynomial
 static void gf256_explog_init()
 {
-    unsigned jj, k;
+    unsigned jj;
     unsigned poly = GF256Ctx.Polynomial;
     uint8_t* exptab = GF256Ctx.GF256_EXP_TABLE;
     uint16_t* logtab = GF256Ctx.GF256_LOG_TABLE;
@@ -656,7 +656,7 @@ static bool IsLittleEndian()
     return 4 == pByte[0] && 3 == pByte[1] && 2 == pByte[2] && 1 == pByte[3];
 }
 
-int gf256_init_(int version)
+extern int gf256_init_(int version)
 {
     if (version != GF256_VERSION)
         return -1; // User's header does not match library version.
@@ -700,7 +700,7 @@ int gf256_init_(int version)
 //------------------------------------------------------------------------------
 // Operations
 
-void gf256_add_mem(void * GF256_RESTRICT vx,
+extern void gf256_add_mem(void * GF256_RESTRICT vx,
                               const void * GF256_RESTRICT vy, int bytes)
 {
     GF256_M128 * GF256_RESTRICT x16 = (GF256_M128 *)(vx);
@@ -748,9 +748,13 @@ void gf256_add_mem(void * GF256_RESTRICT vx,
         uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x16);
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
+        char * tmpch=malloc(25);
+        memset(tmpch,0,25);
         const unsigned count = (unsigned)bytes / 8;
-        for (ii = 0; ii < count; ++ii)
+        for (ii = 0; ii < count; ++ii){
+            sprintf(tmpch,"%lu",x8[ii]);
             x8[ii] ^= y8[ii];
+        }
 
         x16 = (GF256_M128 *)(x8 + count);
         y16 = (const GF256_M128 *)(y8 + count);
@@ -877,7 +881,7 @@ void gf256_add_mem(void * GF256_RESTRICT vx,
     }
 }
 
-void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
+extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
                                const void * GF256_RESTRICT vy, int bytes)
 {
     GF256_M128 * GF256_RESTRICT z16 = (GF256_M128*)(vz);
@@ -998,7 +1002,7 @@ void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
     }
 }
 
-void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
+extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
                                  const void * GF256_RESTRICT vy, int bytes)
 {
     GF256_M128 * GF256_RESTRICT z16 = (GF256_M128*)(vz);
@@ -1154,7 +1158,7 @@ void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
     }
 }
 
-void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx, uint8_t y, int bytes)
+extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx, uint8_t y, int bytes)
 {
     // Use a single if-statement to handle special cases
     if (y <= 1)
@@ -1300,7 +1304,7 @@ void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx, uin
     }
 }
 
-void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
+extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
                                  const void * GF256_RESTRICT vx, int bytes)
 {
     // Use a single if-statement to handle special cases
@@ -1511,7 +1515,7 @@ void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
     }
 }
 
-void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes)
+extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes)
 {
     unsigned ii;
 #if defined(GF256_TARGET_MOBILE)
