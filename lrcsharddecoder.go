@@ -1,4 +1,5 @@
 package lrcpkg
+
 /*
  #cgo CFLAGS: -I./
  #cgo CFLAGS: -g -Wall -O0
@@ -150,14 +151,15 @@ import (
 	"unsafe"
 )
 import (
-//     "fmt"
-     "container/list"
+	//     "fmt"
+	"container/list"
 )
-
 
 const BufferSize = 16384
 const TotalOriginalCount = 128
-type Shard  [BufferSize]byte
+
+type Shard [BufferSize]byte
+
 //var IndexData uint16
 //var DataList[TotalShardCount] *C.char
 
@@ -167,21 +169,21 @@ type OriginalShards struct {
 }
 
 func (s *Shardsinfo) LRCinit(n int16) int16 {
-	stat := C.LRC_Initial(C.short(13))
+	stat := C.LRC_Initial(C.short(n))
 	if stat < 0 {
 		return -2
 	}
 	return 1
 }
 
-func WriteAddrToFile(addr uint64, entry, fileName string) error{
+func WriteAddrToFile(addr uint64, entry, fileName string) error {
 	//filePath := "/root/" + fileName
 	filePath2 := "/root/cgo_malloc2"
 	f, err := os.OpenFile(filePath2, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
-	str_addr := strconv.FormatUint(addr,10)
+	str_addr := strconv.FormatUint(addr, 10)
 	f.Write([]byte(entry))
 	n, err := f.Write([]byte(str_addr))
 	if err == nil && n < len([]byte(str_addr)) {
@@ -194,43 +196,39 @@ func WriteAddrToFile(addr uint64, entry, fileName string) error{
 	return err
 }
 
-func (s *Shardsinfo)GetRCHandle(sdinf *Shardsinfo) (unsafe.Pointer){
-     if (sdinf == nil) {
-        return nil
-     }
-     
-/*
-     sdinf.ptrData = make([]byte,16384)
-     for i:=0;i < sdinf.rebuilderNum;i++{
-         datalist[i]=(*C.char)(C.malloc(C.size_t(16384)))
-     }
-*/
-     sdinf.IndexData = 0
-	 sdinf.PtrData = C.malloc(C.size_t(16384))
-	 //WriteAddrToFile(uint64(uintptr(sdinf.PtrData)),"PtrData","cgo_malloc")
-	 sdinf.ShardSize = BufferSize
-     if sdinf.PtrData == nil {
-        panic("ptrData malloc failed!\n")
-     }
+func (s *Shardsinfo) GetRCHandle(sdinf *Shardsinfo) unsafe.Pointer {
+	if sdinf == nil {
+		return nil
+	}
 
-     fmt.Println("origcount=",sdinf.OriginalCount,"lostidx=",sdinf.Lostindex,"ptrdataaddr=",sdinf.PtrData)
-     handle := C.LRC_BeginRebuild(C.ushort(sdinf.OriginalCount),C.ushort(sdinf.Lostindex),16384,(unsafe.Pointer)(sdinf.PtrData))
-	 //WriteAddrToFile(uint64(uintptr(handle)),"handle","cgo_malloc")
-	 if handle == nil {
-	 	fmt.Println("get handle error, handle is nil!")
-	 }
+	sdinf.IndexData = 0
+	sdinf.PtrData = C.malloc(C.size_t(sdinf.ShardSize))
+	//sdinf.ShardSize = BufferSize
+	if sdinf.PtrData == nil {
+		panic("ptrData malloc failed!\n")
+	}
 
-	 rbd := (*C.Rebuilder)(handle)
-     sdinf.Status=1
-     sdinf.Handle=handle
-     fmt.Printf("sdinf.handle=%p \n",&(sdinf.Handle))
-     fmt.Println("Rebuilder=",rbd)
-     return handle
+	fmt.Println("origcount=", sdinf.OriginalCount, "lostidx=", sdinf.Lostindex, "ptrdataaddr=", sdinf.PtrData)
+	handle := C.LRC_BeginRebuild(
+		C.ushort(sdinf.OriginalCount),
+		C.ushort(sdinf.Lostindex),
+		sdinf.ShardSize,
+		(unsafe.Pointer)(sdinf.PtrData))
+	if handle == nil {
+		fmt.Println("get handle error, handle is nil!")
+	}
+
+	rbd := (*C.Rebuilder)(handle)
+	sdinf.Status = 1
+	sdinf.Handle = handle
+	fmt.Printf("sdinf.handle=%p \n", &(sdinf.Handle))
+	fmt.Println("Rebuilder=", rbd)
+	return handle
 }
 
-func (s *Shardsinfo) GetHandleParam(handle unsafe.Pointer) (int, int, error){
+func (s *Shardsinfo) GetHandleParam(handle unsafe.Pointer) (int, int, error) {
 	var err error
-	if nil == handle  {
+	if nil == handle {
 		err = fmt.Errorf("error: hanle is nil")
 		return -1, -1, err
 	}
@@ -240,88 +238,88 @@ func (s *Shardsinfo) GetHandleParam(handle unsafe.Pointer) (int, int, error){
 	return int(lostidx), int(stage), nil
 }
 
-func (s *Shardsinfo) SetHandleParam(handle unsafe.Pointer,lostidx uint8, stage uint8) error{
+func (s *Shardsinfo) SetHandleParam(handle unsafe.Pointer, lostidx uint8, stage uint8) error {
 	//var decoder *C.Rebuilder
 	rebuider := (*C.Rebuilder)(handle)
-	fmt.Println("old_lostidx=",rebuider.iLost,"stage=",rebuider.stage,)
-	ret := C.LRC_SetHandleParam(handle,C.ushort(lostidx),C.ushort(stage))
-	if ret != 0{
+	fmt.Println("old_lostidx=", rebuider.iLost, "stage=", rebuider.stage)
+	ret := C.LRC_SetHandleParam(handle, C.ushort(lostidx), C.ushort(stage))
+	if ret != 0 {
 		err := fmt.Errorf("set handle param error!")
 		fmt.Println(err)
 		return err
 	}
 	//var decoder *C.Rebuilder
-	fmt.Println("lostidx=",rebuider.iLost,"stage=",rebuider.stage)
+	fmt.Println("lostidx=", rebuider.iLost, "stage=", rebuider.stage)
 
 	return nil
 }
 
-func (s *Shardsinfo)GetNeededShardList(handle unsafe.Pointer)(*list.List,int16){
-     var needlist *C.uchar
-     needlist = (*C.uchar)(C.malloc(C.size_t(256)))
-	 //WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"needlist","cgo_malloc")
-     oll := list.New()
-     var ndnum C.short
-     ndnum = C.LRC_NextRequestList(handle,needlist)
-     //var cchar C.char
-     if (int16(ndnum) >0){
-        for i:=C.short(0); i < ndnum; i++ {
-            oll.PushBack(int16(*(*C.uchar)(unsafe.Pointer(uintptr(unsafe.Pointer(needlist)) + uintptr(i)))))
-        }
-     }
+func (s *Shardsinfo) GetNeededShardList(handle unsafe.Pointer) (*list.List, int16) {
+	var needlist *C.uchar
+	needlist = (*C.uchar)(C.malloc(C.size_t(TotalShardCount)))
+	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"needlist","cgo_malloc")
+	oll := list.New()
+	var ndnum C.short
+	ndnum = C.LRC_NextRequestList(handle, needlist)
+	//var cchar C.char
+	if int16(ndnum) > 0 {
+		for i := C.short(0); i < ndnum; i++ {
+			oll.PushBack(int16(*(*C.uchar)(unsafe.Pointer(uintptr(unsafe.Pointer(needlist)) + uintptr(i)))))
+		}
+	}
 	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(needlist))),"free_needlist","cgo_free")
-	 C.cgofree(unsafe.Pointer(needlist))
-     return oll,int16(ndnum)
+	C.cgofree(unsafe.Pointer(needlist))
+	return oll, int16(ndnum)
 }
 
-func (s *Shardsinfo)AddShardData(handle unsafe.Pointer,shard []byte)(int16, error){
-     var stat C.short
-     var err error
+func (s *Shardsinfo) AddShardData(handle unsafe.Pointer, shard []byte) (int16, error) {
+	var stat C.short
+	var err error
 
-     if nil == handle {
-     	err = fmt.Errorf("error: handle is nil, func: AddShardData")
-     	return -100, err
-	 }
+	if nil == handle {
+		err = fmt.Errorf("error: handle is nil, func: AddShardData")
+		return -100, err
+	}
 
-	 if nil == shard {
-		 err = fmt.Errorf("error: shard is nil, func: AddShardData")
-		 return -200, err
-	 }
+	if nil == shard {
+		err = fmt.Errorf("error: shard is nil, func: AddShardData")
+		return -200, err
+	}
 
 	if len(shard) != 16384 {
 		err = fmt.Errorf("error: shard != 16384, func: AddShardData")
 		return -300, err
 	}
 
-     temp := (*C.char)(C.malloc(C.size_t(16384)))
-     if temp == nil {
-     	return -400, fmt.Errorf("AddShardData malloc memory fail")
-	 }
-     C.memcpy(unsafe.Pointer(temp),unsafe.Pointer(&shard[0]),16384)
-     s.DataList[s.IndexData] = temp
-     //if s.IndexData >= 120{
-		// fmt.Println("[recover] s.IndexData=",s.IndexData)
-	 //}
-	 //WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[IndexData]))),"DataList[IndexData]","cgo_malloc")
-     s.IndexData++
+	temp := (*C.char)(C.malloc(C.size_t(s.ShardSize)))
+	if temp == nil {
+		return -400, fmt.Errorf("AddShardData malloc memory fail")
+	}
+	C.memcpy(unsafe.Pointer(temp), unsafe.Pointer(&shard[0]), s.ShardSize)
+	s.DataList[s.IndexData] = temp
+	//if s.IndexData >= 120{
+	// fmt.Println("[recover] s.IndexData=",s.IndexData)
+	//}
+	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[IndexData]))),"DataList[IndexData]","cgo_malloc")
+	s.IndexData++
 
-     stat = C.LRC_OneShardForRebuild(handle,unsafe.Pointer(temp))
+	stat = C.LRC_OneShardForRebuild(handle, unsafe.Pointer(temp))
 
-     return int16(stat), nil
+	return int16(stat), nil
 }
 
-func (s *Shardsinfo)GetRebuildData(sdinf *Shardsinfo)([]byte,int16){
-     if (sdinf.PtrData == nil){
-        return nil,-1
-     }
-     temp := make([]byte,sdinf.ShardSize)
-     var j uint32
-     j=0
-     for i:=C.uint(0);i < C.uint(sdinf.ShardSize);i++{
-         temp[j]=byte(*((*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(sdinf.PtrData)) + uintptr(i)))))
-         j++
-     }
-     return temp,1
+func (s *Shardsinfo) GetRebuildData(sdinf *Shardsinfo) ([]byte, int16) {
+	if sdinf.PtrData == nil {
+		return nil, -1
+	}
+	temp := make([]byte, sdinf.ShardSize)
+	var j uint32
+	j = 0
+	for i := C.uint(0); i < C.uint(sdinf.ShardSize); i++ {
+		temp[j] = byte(*((*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(sdinf.PtrData)) + uintptr(i)))))
+		j++
+	}
+	return temp, 1
 }
 
 func (s *Shardsinfo) FreeHandle() {
@@ -342,21 +340,22 @@ func (s *Shardsinfo) FreeHandle() {
 
 //-------LRC---------//
 
-func SaveShardtoFile(Oshard Shard,i int){
+func SaveShardtoFile(Oshard Shard, i int) {
 	dir := "/home/ytago/src/GOLRC/slicedir/"
-	filePath := dir+strconv.Itoa(i)
-	f,err:=os.OpenFile(filePath,os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	filePath := dir + strconv.Itoa(i)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
 	defer f.Close()
 	if err != nil {
-		fmt.Println("open file:",filePath," error")
+		fmt.Println("open file:", filePath, " error")
 		return
 	}
 	f.Write(Oshard[:])
 }
 
+// encode这先不修改，dn目前用不到 20230114 by polly
 func (s *Shardsinfo) LRCEncode(OriginalShards []Shard) []Shard {
 	//s.PRecoveryData = C.malloc(BufferSize * 36)
-	rcvData := make([]Shard,36)
+	rcvData := make([]Shard, 36)
 	s.PRecoveryData = unsafe.Pointer(&rcvData[0][0])
 	if s.PRecoveryData == nil {
 		fmt.Println("error, cannot alloc enough space!")
@@ -383,21 +382,9 @@ func (s *Shardsinfo) LRCEncode(OriginalShards []Shard) []Shard {
 	res := C.LRC_Encode(pts, C.ushort(s.OriginalCount), C.ulong(s.ShardSize), (unsafe.Pointer)(s.PRecoveryData))
 
 	if res < 0 {
-		fmt.Println("LRC_Encode error, res=",res)
+		fmt.Println("LRC_Encode error, res=", res)
 		return nil
 	}
-
-	//type sliceP  *Shard
-	//temp := make([]sliceP, res)
-	////var j uint32
-	////j = 0
-	//for i := C.uint(0); i < C.uint(res); i++ {
-	//	temp[i] = (sliceP)(unsafe.Pointer(uintptr(unsafe.Pointer(s.PRecoveryData)) + uintptr(i*BufferSize)))
-	//	copy(rcvData[i][:],(*temp[i])[:])
-	//	//rcvData=append(rcvData,(*temp[j]))
-	//	SaveShardtoFile((*temp[i]),int(i+128))
-	//	//j++
-	//}
 
 	//C.free(s.PRecoveryData)
 	C.cgofree(unsafe.Pointer(pts))
@@ -405,14 +392,14 @@ func (s *Shardsinfo) LRCEncode(OriginalShards []Shard) []Shard {
 	return rcvData
 }
 
-func (s *Shardsinfo)SaveShardtoFile2(handle unsafe.Pointer ){
-	CHandle := (* C.DecoderLRC_t)(unsafe.Pointer(handle))
+func (s *Shardsinfo) SaveShardtoFile2(handle unsafe.Pointer) {
+	CHandle := (*C.DecoderLRC_t)(unsafe.Pointer(handle))
 	DOriginalShard := CHandle.pDecodedData
-	fmt.Printf("DOriginalShard=%p\n",DOriginalShard)
+	fmt.Printf("DOriginalShard=%p\n", DOriginalShard)
 	var OShard Shard
-	for k := 0; k < TotalOriginalCount; k++{
+	for k := 0; k < TotalOriginalCount; k++ {
 		C.cToGomem(unsafe.Pointer(&OShard[0]), unsafe.Pointer(DOriginalShard), C.int(k), BufferSize-1)
-		SaveShardtoFile(OShard,k)
+		SaveShardtoFile(OShard, k)
 	}
 }
 
@@ -432,21 +419,21 @@ func (s *Shardsinfo) LRCBeginDecode(OriginalCount uint16, ShardSize uint32) unsa
 
 func (s *Shardsinfo) LRCDecode(Dshard Shard) (OShardData []byte, res int) {
 	res = int(C.LRC_Decode(s.Handle, unsafe.Pointer(&Dshard[0])))
-	if res > 0{
-		Osize := (s.ShardSize-1) * uint32(s.OriginalCount)
+	if res > 0 {
+		Osize := (s.ShardSize - 1) * uint32(s.OriginalCount)
 		OShardData = make([]byte, Osize)
 		C.getCmemData(unsafe.Pointer(&OShardData[0]), s.PRecoveryData, C.int(Osize))
 		C.cgofree(s.PRecoveryData)
 		C.LRC_cgoFreeHandle(s.Handle)
 	}
-	if res < 0{
+	if res < 0 {
 		C.cgofree(s.PRecoveryData)
 		C.LRC_cgoFreeHandle(s.Handle)
 	}
 	return
 }
 
-//use to free recoverData after encode
-func (s *Shardsinfo) FreeRecoverData(){
+// use to free recoverData after encode
+func (s *Shardsinfo) FreeRecoverData() {
 	C.cgofree(s.PRecoveryData)
 }
