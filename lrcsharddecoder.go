@@ -286,7 +286,7 @@ func (s *Shardsinfo) AddShardData(handle unsafe.Pointer, shard []byte) (int16, e
 		return -200, err
 	}
 
-	if len(shard) != 16384 {
+	if uint32(len(shard)) != s.ShardSize {
 		err = fmt.Errorf("error: shard != 16384, func: AddShardData")
 		return -300, err
 	}
@@ -297,10 +297,6 @@ func (s *Shardsinfo) AddShardData(handle unsafe.Pointer, shard []byte) (int16, e
 	}
 	C.memcpy(unsafe.Pointer(temp), unsafe.Pointer(&shard[0]), s.ShardSize)
 	s.DataList[s.IndexData] = temp
-	//if s.IndexData >= 120{
-	// fmt.Println("[recover] s.IndexData=",s.IndexData)
-	//}
-	//WriteAddrToFile(uint64(uintptr(unsafe.Pointer(DataList[IndexData]))),"DataList[IndexData]","cgo_malloc")
 	s.IndexData++
 
 	stat = C.LRC_OneShardForRebuild(handle, unsafe.Pointer(temp))
