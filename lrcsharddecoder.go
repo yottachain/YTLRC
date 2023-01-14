@@ -212,7 +212,7 @@ func (s *Shardsinfo) GetRCHandle(sdinf *Shardsinfo) unsafe.Pointer {
 	handle := C.LRC_BeginRebuild(
 		C.ushort(sdinf.OriginalCount),
 		C.ushort(sdinf.Lostindex),
-		sdinf.ShardSize,
+		C.ulong(sdinf.ShardSize),
 		(unsafe.Pointer)(sdinf.PtrData))
 	if handle == nil {
 		fmt.Println("get handle error, handle is nil!")
@@ -295,7 +295,7 @@ func (s *Shardsinfo) AddShardData(handle unsafe.Pointer, shard []byte) (int16, e
 	if temp == nil {
 		return -400, fmt.Errorf("AddShardData malloc memory fail")
 	}
-	C.memcpy(unsafe.Pointer(temp), unsafe.Pointer(&shard[0]), s.ShardSize)
+	C.memcpy(unsafe.Pointer(temp), unsafe.Pointer(&shard[0]), C.size_t(s.ShardSize))
 	s.DataList[s.IndexData] = temp
 	s.IndexData++
 
